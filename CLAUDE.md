@@ -1,61 +1,105 @@
 # AOP Shala NYC — Weekly Schedule
 
-A single-page PWA for yoga class scheduling and student signups for AOP Shala NYC.
+A PWA for yoga class scheduling and student signups for AOP Shala NYC.
 
-## Stack
+## Branches
 
-- **Frontend**: Vanilla HTML/CSS/JS (all in `index.html`) — no build step
-- **Database**: Firebase Realtime Database (signups, schedule, weekly overrides)
-- **Email**: Brevo transactional API via Netlify serverless function
-- **Hosting**: Netlify (static site + functions)
-- **PWA**: Service worker in `sw.js`, manifest in `manifest.json`
+| Branch | Status | Stack |
+|--------|--------|-------|
+| `main` | Live on Netlify + Firebase | Vanilla HTML/JS, single `index.html` |
+| `beta` | Migration in progress — Vercel preview | Next.js + Supabase + Clerk |
 
-## Project Structure
+**All development happens on `beta`. Never touch `main` during migration.**
+
+---
+
+## Beta Branch Stack
+
+| Layer | Technology |
+|---|---|
+| Frontend + API routes | Next.js 16 (App Router) on Vercel |
+| Database | Supabase Postgres + Realtime |
+| Auth (admin only) | Clerk — email/password + magic link |
+| Email | Brevo (unchanged) via Next.js API route |
+| Styling | Tailwind CSS + shadcn/ui |
+| PWA | `@ducanh2912/next-pwa` (auto-generates service worker) |
+
+## Project Structure (beta)
 
 ```
-index.html                    # Entire frontend (HTML + CSS + JS, ~1150 lines)
-sw.js                         # Service worker — cache-first for assets, network-first otherwise
-manifest.json                 # PWA manifest
-netlify.toml                  # Netlify build config (functions dir, Node version)
-netlify/functions/
-  send-email.js               # Serverless function — proxies email sends to Brevo API
-icon-192.png / icon-512.png   # PWA icons
+app/
+  layout.tsx              # ClerkProvider + DM Sans/DM Serif fonts + global styles
+  page.tsx                # Schedule view (public)
+  /admin/
+    layout.tsx            # Clerk auth guard
+    page.tsx              # Admin panel
+  /api/
+    /classes/route.ts     # GET public, POST/PUT/DELETE admin
+    /signups/route.ts     # GET public, POST public, DELETE (email match or admin)
+    /overrides/route.ts   # GET public, PUT/DELETE admin
+    /send-email/route.ts  # Brevo proxy
+    /students/route.ts    # GET all unique students (admin only)
+
+components/
+  /ui/                    # shadcn/ui primitives
+  Calendar.tsx            # 7-day grid
+  ClassBlock.tsx          # Individual class card
+  SignupModal.tsx         # Sign up / cancel modal
+  AdminPanel.tsx          # Add/edit/delete classes, broadcast email
+  WeekNav.tsx             # Previous/next week navigation
+
+lib/
+  supabase.ts             # Supabase anon client + supabaseAdmin() (server-only)
+  email.ts                # Brevo send helper
+  emailTemplates.ts       # HTML email builders
+  dates.ts                # getWeekKey, getWeekDates, fmtTime, fmtTimeRange
+
+middleware.ts             # Clerk: protects /admin/* routes
+public/
+  manifest.json           # PWA manifest
+  icon-192.png
+  icon-512.png
 ```
 
 ## Environment Variables
 
-Set in Netlify dashboard (Production) and `.env.local` (local dev via `netlify dev`).
+Fill in `.env.local` for local dev. Mirror all in Vercel dashboard.
 
-| Variable        | Used by                          | Description                     |
-|-----------------|----------------------------------|---------------------------------|
-| `BREVO_API_KEY` | `netlify/functions/send-email.js`| Brevo transactional email API key|
+| Variable | Used by | Description |
+|---|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | `lib/supabase.ts` | Supabase project URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | `lib/supabase.ts` | Supabase anon key (public reads) |
+| `SUPABASE_SERVICE_ROLE_KEY` | `lib/supabase.ts` (server only) | Admin writes — never sent to browser |
+| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Clerk | Clerk publishable key |
+| `CLERK_SECRET_KEY` | Clerk middleware + API routes | Clerk secret — server only |
+| `BREVO_API_KEY` | `/api/send-email` | Brevo transactional email |
+| `ADMIN_EMAIL_1` | email templates | intouchyoga@icloud.com |
+| `ADMIN_EMAIL_2` | email templates | saredeswitzer@gmail.com |
+| `SENDER_EMAIL` | email templates | saredeswitzer@gmail.com |
 
 ## Local Development
 
-Requires the Netlify CLI to run functions locally:
-
 ```bash
-npm install -g netlify-cli
-netlify dev
+npm run dev    # starts at http://localhost:3000
 ```
 
-`netlify dev` reads `.env.local` automatically and serves the site at `http://localhost:8888`.
+`.env.local` is read automatically by Next.js. No CLI wrapper needed (unlike Netlify).
 
 ## Key Concepts
 
-### Data model (Firebase Realtime Database)
-- `schedule/` — array of class slot objects `{id, day, time, endTime, className, location, capacity}`
-- `signups/{weekKey}/{slotId}/{pushId}` — student signup entries `{name, email, ts}`
-- `overrides/{weekKey}/{slotId}` — per-week slot overrides `{cancelled, time, location, ...}`
+### Data model (Supabase Postgres)
+- `classes` — recurring class definitions `{id, day, time, end_time, class_name, location, capacity}`
+- `signups` — student signup entries `{id, week_key, class_id, name, email, signed_up_at}`
+- `overrides` — per-week slot overrides `{id, week_key, class_id, cancelled, time, ...}`
 
 ### Week key
-Weeks are keyed by the Sunday date of that week in `YYYY-MM-DD` format. `getWeekKey(date)` derives the key from any date.
+Weeks are keyed by the Sunday date of that week in `YYYY-MM-DD` format. `getWeekKey(date)` in `lib/dates.ts`.
 
-### Admin panel
-Protected by a plaintext password (`ADMIN_PASSWORD` in `index.html`). Admin can add/edit/cancel slots, remove signups, and send bulk email to enrolled students or all-time students.
+### Auth
+Admin-only via Clerk. Students are never authenticated — they sign up with name + email only. Clerk middleware in `middleware.ts` guards `/admin` and admin API routes. API routes verify the session with `auth()` from `@clerk/nextjs/server` before using the Supabase service role key.
 
 ### Email flow
-All emails go through `/.netlify/functions/send-email` (never directly from the browser). The function uses `BREVO_API_KEY` from the environment. Sender is `saredeswitzer@gmail.com`, reply-to is `intouchyoga@icloud.com`.
+All emails go through `/api/send-email` (Next.js API route). Sender is `saredeswitzer@gmail.com`, reply-to is `intouchyoga@icloud.com`.
 
 ### Location color coding
 Four CSS classes map locations to colors:
@@ -64,16 +108,18 @@ Four CSS classes map locations to colors:
 - `loc-80th` — 102 West 80th St
 - `loc-other` — anything else
 
-## Planned Migration
+### Realtime
+Supabase Realtime subscriptions in the Calendar component watch `signups` and `overrides` filtered by `week_key`. Channels are torn down and re-subscribed on week navigation.
 
-A full migration to Next.js + Supabase + Clerk + shadcn/ui is planned. See `MIGRATION_PLAN.md` in the repo root for the complete plan including schema, branch strategy, auth setup, data migration, and phased implementation steps.
+## Migration Status
 
-Work happens on a `beta` branch — `main` stays live on Netlify/Firebase until cutover.
+| Phase | Status | Description |
+|---|---|---|
+| Phase 0 — Branch Setup | **Done** | beta branch created, Next.js scaffolded |
+| Phase 1 — Scaffold | Not started | Supabase schema, Clerk app, Vercel deploy |
+| Phase 2 — Core Schedule | Not started | Calendar UI ported to React |
+| Phase 3 — Signup / Cancel | Not started | SignupModal + email |
+| Phase 4 — Admin Panel | Not started | Auth-protected admin |
+| Phase 5 — Go-Live | Not started | Data migration + cutover |
 
-## Known Issues / Tech Debt
-
-- Admin password is hardcoded in plaintext in `index.html` — visible in DevTools. Should move to Firebase Authentication.
-- User-supplied fields (student name/email) are not HTML-escaped before being inserted into admin notification emails — low-severity XSS risk in email clients.
-- `sw.js` references `emailjs` in a bypass check but EmailJS is no longer used (replaced by Brevo).
-- All code lives in one file (`index.html`). Worth splitting into `app.js` + `styles.css` when making significant changes.
-- Firebase database security rules should be audited to ensure they are not set to public read/write.
+See `MIGRATION_PLAN.md` for full details including schema SQL, RLS policies, and data migration script.

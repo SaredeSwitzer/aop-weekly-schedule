@@ -271,10 +271,16 @@ Vercel will auto-deploy the `beta` branch to a preview URL (e.g. `beta--aopweekl
 
 ## Migration Phases
 
-### Phase 0 — Branch Setup
-- Create `beta` branch from current `main`
-- Initialize new Next.js project in the repo root on `beta`
-- The existing `index.html`, `sw.js`, etc. are replaced by the Next.js project structure
+### Phase 0 — Branch Setup ✓ DONE (2025-06-05)
+- `beta` branch created from `main`
+- Next.js 16 (App Router) scaffolded with TypeScript + Tailwind
+- `@clerk/nextjs`, `@supabase/supabase-js`, `@ducanh2912/next-pwa` installed
+- `middleware.ts` protecting `/admin` routes via Clerk
+- `lib/supabase.ts` with anon + service-role clients
+- `app/layout.tsx` with ClerkProvider + DM Sans/DM Serif fonts
+- `next.config.ts` with next-pwa (disabled in dev)
+- Old files removed: `index.html`, `sw.js`, `netlify.toml`, `netlify/`
+- PWA assets moved to `public/`
 
 ### Phase 1 — Scaffold
 - Init Next.js 14 project with Tailwind + Clerk + Supabase dependencies
