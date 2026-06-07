@@ -67,6 +67,18 @@ export async function POST(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   const { searchParams } = req.nextUrl;
+
+  // Admin removal by signup UUID (no email notification)
+  const signupId = searchParams.get("id");
+  if (signupId) {
+    const { userId } = await (await import("@clerk/nextjs/server")).auth();
+    if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const db = supabaseAdmin();
+    const { error } = await db.from("signups").delete().eq("id", signupId);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ success: true });
+  }
+
   const week_key  = searchParams.get("week_key");
   const class_id  = searchParams.get("class_id");
   const email     = searchParams.get("email");

@@ -8,6 +8,7 @@ const BASE_STYLE = `body{font-family:Georgia,serif;background:#faf7f2;margin:0;p
 type StudentParams = {
   toName: string;
   action: string;
+  subtext?: string;
   className: string;
   classDate: string;
   classTime: string;
@@ -17,7 +18,8 @@ type StudentParams = {
 };
 
 export function studentEmailHtml(p: StudentParams): string {
-  return `<!DOCTYPE html><html><head><meta charset='UTF-8'/><style>${BASE_STYLE}.greeting{font-size:17px;color:#3d2e1e;margin:0 0 6px;}.subtext{font-family:sans-serif;font-size:14px;color:#9a7d5e;margin:0 0 24px;}.cancel-note{font-family:sans-serif;font-size:13px;color:#aaa;line-height:1.6;margin-bottom:20px;}.signoff{font-family:Georgia,serif;font-size:15px;color:#3d2e1e;}</style></head><body><div class='wrap'><div class='header'><h1>🧘 AOP Shala NYC</h1><p>Class Confirmation</p></div><div class='body'><p class='greeting'>Hi ${esc(p.toName)},</p><p class='subtext'>${esc(p.action)} confirmed! Here are your class details.</p><p class='section-title'>Your Class</p><div class='card'><div class='row'><div class='row-label'>Class</div><div class='row-value'>${esc(p.className)}</div></div><div class='row'><div class='row-label'>Date</div><div class='row-value'>${esc(p.classDate)}</div></div><div class='row'><div class='row-label'>Time</div><div class='row-value'>${esc(p.classTime)}</div></div><div class='row'><div class='row-label'>Location</div><div class='row-value'>📍 ${esc(p.location)}</div></div><div class='row'><div class='row-label'>Spots remaining</div><div class='row-value'>${p.spotsLeft} of ${p.capacity}</div></div></div><p class='cancel-note'>Need to cancel? Visit the schedule, click on your class and select <strong>Cancel My Signup</strong>.</p><p class='signoff'>See you on the mat! 🧘</p></div><div class='footer'>AOP Shala NYC · intouchyoga@icloud.com</div></div></body></html>`;
+  const subtextLine = p.subtext ?? `${p.action} confirmed! Here are your class details.`;
+  return `<!DOCTYPE html><html><head><meta charset='UTF-8'/><style>${BASE_STYLE}.greeting{font-size:17px;color:#3d2e1e;margin:0 0 6px;}.subtext{font-family:sans-serif;font-size:14px;color:#9a7d5e;margin:0 0 24px;}.cancel-note{font-family:sans-serif;font-size:13px;color:#aaa;line-height:1.6;margin-bottom:20px;}.signoff{font-family:Georgia,serif;font-size:15px;color:#3d2e1e;}</style></head><body><div class='wrap'><div class='header'><h1>🧘 AOP Shala NYC</h1><p>Class Confirmation</p></div><div class='body'><p class='greeting'>Hi ${esc(p.toName)},</p><p class='subtext'>${esc(subtextLine)}</p><p class='section-title'>Your Class</p><div class='card'><div class='row'><div class='row-label'>Class</div><div class='row-value'>${esc(p.className)}</div></div><div class='row'><div class='row-label'>Date</div><div class='row-value'>${esc(p.classDate)}</div></div><div class='row'><div class='row-label'>Time</div><div class='row-value'>${esc(p.classTime)}</div></div><div class='row'><div class='row-label'>Location</div><div class='row-value'>📍 ${esc(p.location)}</div></div><div class='row'><div class='row-label'>Spots remaining</div><div class='row-value'>${p.spotsLeft} of ${p.capacity}</div></div></div><p class='cancel-note'>Need to cancel? Visit the schedule, click on your class and select <strong>Cancel My Signup</strong>.</p><p class='signoff'>See you on the mat! 🧘</p></div><div class='footer'>AOP Shala NYC · intouchyoga@icloud.com</div></div></body></html>`;
 }
 
 type AdminParams = {

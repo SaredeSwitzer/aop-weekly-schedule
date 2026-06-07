@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import Calendar from "./Calendar";
 import type { Class } from "@/lib/types";
 
@@ -23,6 +24,9 @@ export default function SchedulePage({ initialClasses }: Props) {
                 </div>
               </div>
             </div>
+            <Link href="/admin" style={{ color: "rgba(255,255,255,0.7)", fontSize: 13, textDecoration: "none" }}>
+              ⚙ Admin
+            </Link>
           </div>
         </div>
       </header>

@@ -61,6 +61,45 @@ export async function sendSignupEmails(params: {
   ]);
 }
 
+export async function notifyStudentsClassUpdate(params: {
+  signups: { name: string; email: string }[];
+  className: string;
+  classTime: string;
+  classDate: string;
+  location: string;
+  spotsLeft: number;
+  capacity: number;
+}) {
+  const { studentEmailHtml } = await import("./emailTemplates");
+  const { className, classTime, classDate, location, spotsLeft, capacity } = params;
+  for (const s of params.signups) {
+    brevoSend(
+      s.email, s.name,
+      `Class Update — ${className} · ${classDate}`,
+      studentEmailHtml({ toName: s.name, action: "Class Update", subtext: "Your class details have been updated.", className, classTime, classDate, location, spotsLeft, capacity }),
+    ).catch(console.error);
+  }
+}
+
+export async function notifyStudentsClassCancelled(params: {
+  signups: { name: string; email: string }[];
+  className: string;
+  classTime: string;
+  classDate: string;
+  location: string;
+  capacity: number;
+}) {
+  const { studentEmailHtml } = await import("./emailTemplates");
+  const { className, classTime, classDate, location, capacity } = params;
+  for (const s of params.signups) {
+    brevoSend(
+      s.email, s.name,
+      `Class Cancelled — ${className} · ${classDate}`,
+      studentEmailHtml({ toName: s.name, action: "Class Cancelled", subtext: "This class has been cancelled for this week.", className, classTime, classDate, location, spotsLeft: 0, capacity }),
+    ).catch(console.error);
+  }
+}
+
 export async function sendCancelEmails(params: {
   className: string;
   classTime: string;
