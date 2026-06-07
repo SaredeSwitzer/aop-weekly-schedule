@@ -391,7 +391,7 @@ function fmtTimeRange(s,e){return e?fmtTime(s)+' – '+fmtTime(e):fmtTime(s);}
 function timeToMin(t){if(!t)return 0;const[h,m]=t.split(':').map(Number);return h*60+m;}
 
 // ── State ─────────────────────────────────────────────────────────────────
-let db,schedule=[],signups={},overrides={},currentWeekKey=getWeekKey(new Date());
+let db,schedule=[],signups={},overrides={},customLocations=[],currentWeekKey=getWeekKey(new Date());
 let activeSignupSlot=null,activeViewSlot=null,editingSlotId=null,signupsUnsub=null,overridesUnsub=null,adminUnlocked=false;
 let currentTab='signup';
 
@@ -565,7 +565,24 @@ function emailResultToast(sent, failed){
   return `⚠️ Sent to ${sent} of ${total} students (${failed} failed)`;
 }
 
-// ── Location dropdown helper ──────────────────────────────────────────────
+// ── Location dropdown helpers ─────────────────────────────────────────────
+function allKnownLocations(){
+  return [...PRESET_LOCATIONS,...customLocations.filter(l=>!PRESET_LOCATIONS.includes(l))];
+}
+function buildLocationOptions(currentValue){
+  const all=allKnownLocations();
+  const known=all.includes(currentValue);
+  return all.map(l=>`<option value="${l}"${l===currentValue?' selected':''}>${l}</option>`).join('')
+    +`<option value="__other__"${!known?' selected':''}>Other…</option>`;
+}
+function rebuildLocationSelects(){
+  const newSel=document.getElementById('newLocationSelect');
+  if(newSel){const cur=newSel.value;newSel.innerHTML=buildLocationOptions(cur);}
+}
+function saveCustomLocation(location){
+  if(!location||allKnownLocations().includes(location))return;
+  set(ref(db,'customLocations/'+location.replace(/[.#$[\]/]/g,'_')),location);
+}
 window.toggleOtherLocation=function(prefix){
   const sel=document.getElementById(prefix+'LocationSelect');
   const other=document.getElementById(prefix+'LocationOther');
@@ -581,11 +598,8 @@ function setLocationDropdown(prefix, location){
   const sel=document.getElementById(prefix+'LocationSelect');
   const other=document.getElementById(prefix+'LocationOther');
   if(!sel) return;
-  if(PRESET_LOCATIONS.includes(location)){
-    sel.value=location; other.style.display='none';
-  } else {
-    sel.value='__other__'; other.style.display='block'; other.value=location||'';
-  }
+  if(allKnownLocations().includes(location)){sel.value=location;other.style.display='none';}
+  else{sel.value='__other__';other.style.display='block';other.value=location||'';}
 }
 
 // ── Default slots ─────────────────────────────────────────────────────────
@@ -654,6 +668,10 @@ function subscribeOverrides(){
 }
 subscribeSignups();
 subscribeOverrides();
+onValue(ref(db,'customLocations'),snap=>{
+  customLocations=Object.values(snap.val()||{}).filter(Boolean).sort();
+  rebuildLocationSelects();
+});
 window.changeWeek=function(dir){
   const[y,m,d]=currentWeekKey.split('-').map(Number),dt=new Date(y,m-1,d);
   dt.setDate(dt.getDate()+dir*7);currentWeekKey=getWeekKey(dt);
@@ -743,7 +761,7 @@ function renderAdminList(){
     const sn=DAYS[slot.day].slice(0,3)+' '+fmtDate(slotDate);
     if(editingSlotId===slot.id){
       const editSlot=getEffectiveSlot(slot)||slot;
-      const isPreset=PRESET_LOCATIONS.includes(editSlot.location);
+      const isKnownLoc=allKnownLocations().includes(editSlot.location);
       html+=`<div class="slot-row"><div class="edit-row">
         <select class="input-field" id="edit_day" style="width:145px">
           ${[6,0,1,2,3,4,5].map(d=>{
@@ -757,12 +775,9 @@ function renderAdminList(){
         <input class="input-field" type="text" id="edit_name" value="${editSlot.className}" style="flex:2"/>
         <div style="flex:2;display:flex;flex-direction:column;gap:4px">
           <select class="input-field" id="editLocationSelect" onchange="toggleOtherLocation('edit')">
-            <option value="21 West End Ave"${editSlot.location==='21 West End Ave'?' selected':''}>21 West End Ave</option>
-            <option value="102 West 80th St"${editSlot.location==='102 West 80th St'?' selected':''}>102 West 80th St</option>
-            <option value="Turtle Pond - Central Park"${editSlot.location==='Turtle Pond - Central Park'?' selected':''}>Turtle Pond - Central Park</option>
-            <option value="__other__"${!isPreset?' selected':''}>Other…</option>
+            ${buildLocationOptions(editSlot.location)}
           </select>
-          <input class="input-field" type="text" id="editLocationOther" value="${isPreset?'':editSlot.location||''}" placeholder="Enter location" style="display:${isPreset?'none':'block'}"/>
+          <input class="input-field" type="text" id="editLocationOther" value="${isKnownLoc?'':editSlot.location||''}" placeholder="Enter location" style="display:${isKnownLoc?'none':'block'}"/>
         </div>
         <input class="input-field" type="number" id="edit_cap" value="${editSlot.capacity}" style="width:62px"/>
         <div style="font-size:11px;color:#c4956a;font-family:sans-serif;white-space:nowrap">This week only</div>
@@ -812,9 +827,10 @@ window.addSlot=async function(){
     time:document.getElementById('newTime').value,endTime:document.getElementById('newEndTime').value,
     className:name,location,capacity:parseInt(document.getElementById('newCap').value)||10};
   await set(ref(db,'schedule/'+slot.id),slot);
+  saveCustomLocation(location);
   document.getElementById('newName').value='Ashtanga Open Practice';
   document.getElementById('newLocationOther').value='';
-  document.getElementById('newLocationSelect').value='21 West End Ave';
+  document.getElementById('newLocationSelect').value=PRESET_LOCATIONS[0];
   document.getElementById('newLocationOther').style.display='none';
   showToast('Class added!');
 };
@@ -833,6 +849,7 @@ window.saveEdit=async function(id){
   };
   // Save as a weekly override (not changing base schedule)
   await set(ref(db,`overrides/${currentWeekKey}/${id}`), override);
+  saveCustomLocation(location);
   editingSlotId=null;
   showToast('Class updated for this week only!');
   // Notify students of what changed
