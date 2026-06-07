@@ -70,9 +70,35 @@ async function main() {
   const classEntries = Object.entries(schedule);
   console.log(`Classes in Firebase:  ${classEntries.length}`);
 
+  // Collect all class IDs referenced in signups/overrides (some may have been deleted from schedule)
+  const referencedIds = new Set<string>();
+  for (const slots of Object.values((firebase.signups ?? {}) as Record<string, Record<string, unknown>>))
+    for (const id of Object.keys(slots)) referencedIds.add(id);
+  for (const slots of Object.values((firebase.overrides ?? {}) as Record<string, Record<string, unknown>>))
+    for (const id of Object.keys(slots)) referencedIds.add(id);
+
+  // Build ghost entries for deleted classes using override data as a best-effort reconstruction
+  const ghostEntries: Record<string, Record<string, unknown>> = {};
+  for (const id of referencedIds) {
+    if (schedule[id]) continue; // exists in schedule, no ghost needed
+    // Find the best override with the most data for this class
+    const ovTree = (firebase.overrides ?? {}) as Record<string, Record<string, Record<string, unknown>>>;
+    const ovData = Object.values(ovTree).map((w) => w[id]).filter(Boolean).find((ov) => ov?.className || ov?.class_name);
+    ghostEntries[id] = {
+      className: ovData?.className ?? ovData?.class_name ?? "Archived Class",
+      time:      ovData?.time ?? "10:00",
+      endTime:   ovData?.endTime ?? ovData?.end_time ?? null,
+      location:  ovData?.location ?? null,
+      capacity:  ovData?.capacity ?? 10,
+      day:       0, // unknown — default Monday
+    };
+  }
+  const ghostCount = Object.keys(ghostEntries).length;
+  if (ghostCount) console.log(`  ℹ ${ghostCount} deleted classes will be recreated as archived entries to preserve signup history`);
+
   let classesMigrated = 0, classesSkipped = 0;
-  for (const [id, slot] of classEntries) {
-    const row = { id, ...normSlot(slot) };
+  for (const [id, slot] of [...classEntries, ...Object.entries(ghostEntries)]) {
+    const row = { id, ...normSlot(slot as Record<string, unknown>) };
     if (!row.class_name) { console.warn(`  ⚠ Skipping class ${id} — missing class_name`); classesSkipped++; continue; }
     if (DRY_RUN) { classesMigrated++; continue; }
     const { error } = await db.from("classes").upsert(row, { onConflict: "id" });
