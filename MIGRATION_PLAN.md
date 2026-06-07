@@ -303,10 +303,15 @@ Vercel will auto-deploy the `beta` branch to a preview URL (e.g. `beta--aopweekl
 - `app/page.tsx`: server component fetches initial classes, revalidates every 60s
 - Preview URL: https://aop-weekly-schedule-c9wwnoe7e-sarede-s-projects.vercel.app
 
-### Phase 3 — Signup / Cancel Flow
-- Port `SignupModal.tsx` with sign up + cancel tabs
-- Implement `POST /api/signups`, `DELETE /api/signups`
-- Port email templates + Brevo API route
+### Phase 3 — Signup / Cancel Flow ✅
+- `components/SignupModal.tsx`: sign-up/cancel tabs, remember-me (localStorage `yoga_user`), inline validation
+- `POST /api/signups`: capacity check, duplicate-email guard, inserts via service role, fires confirmation emails
+- `DELETE /api/signups`: finds by email (case-insensitive), fires cancel emails, deletes row
+- `lib/email.ts`: `brevoSend` helper + `sendSignupEmails` / `sendCancelEmails` (fire-and-forget)
+- `lib/emailTemplates.ts`: HTML builders with XSS escaping on all user-supplied fields
+- `app/api/send-email/route.ts`: Brevo proxy (server-only)
+- Calendar manages `selectedClassId` internally and renders `<SignupModal>` directly
+- Preview URL: https://aop-weekly-schedule-70h3xkyh4-sarede-s-projects.vercel.app
 
 ### Phase 4 — Admin Panel
 - Port `AdminPanel.tsx` behind `/admin` (Clerk-protected)
