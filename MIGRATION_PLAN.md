@@ -282,11 +282,14 @@ Vercel will auto-deploy the `beta` branch to a preview URL (e.g. `beta--aopweekl
 - Old files removed: `index.html`, `sw.js`, `netlify.toml`, `netlify/`
 - PWA assets moved to `public/`
 
-### Phase 1 — Scaffold
-- Init Next.js 14 project with Tailwind + Clerk + Supabase dependencies
-- Set up Supabase project, run schema SQL, configure RLS
-- Configure Clerk app (email/password + magic link), set up middleware
-- Deploy skeleton to Vercel, confirm auth works
+### Phase 1 — Scaffold ✓ DONE (2026-06-07)
+- Supabase project created (ref: yrqcfpcfsucefrnxsutm, region: US East)
+- Schema applied: `classes`, `signups`, `overrides` tables with RLS policies
+- Realtime enabled on `signups` and `overrides`
+- Clerk app created ("AOP Shala Admin"), admin user saredeswitzer@gmail.com created
+- Vercel project linked, all env vars set, skeleton deployed
+- Preview URL: https://aop-weekly-schedule-k18iryhsp-sarede-s-projects.vercel.app
+- Next.js 16 build fixes: added `turbopack: {}`, renamed middleware.ts → proxy.ts
 
 ### Phase 2 — Core Schedule
 - Port calendar rendering (`Calendar.tsx`, `ClassBlock.tsx`, `WeekNav.tsx`)
