@@ -10,6 +10,6 @@
 
 [[redirects]]
   from   = "/*"
-  to     = "https://VERCEL_PROD_URL/:splat"
+  to     = "https://aop-weekly-schedule.vercel.app/:splat"
   status = 301
   force  = true
