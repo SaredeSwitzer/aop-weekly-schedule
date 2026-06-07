@@ -291,10 +291,17 @@ Vercel will auto-deploy the `beta` branch to a preview URL (e.g. `beta--aopweekl
 - Preview URL: https://aop-weekly-schedule-k18iryhsp-sarede-s-projects.vercel.app
 - Next.js 16 build fixes: added `turbopack: {}`, renamed middleware.ts → proxy.ts
 
-### Phase 2 — Core Schedule
-- Port calendar rendering (`Calendar.tsx`, `ClassBlock.tsx`, `WeekNav.tsx`)
-- Implement `GET /api/classes`, `GET /api/signups`, `GET /api/overrides`
-- Wire Supabase Realtime for live spot counts
+### Phase 2 — Core Schedule ✓ DONE (2026-06-07)
+- `lib/types.ts`: Class, Signup, Override, SignupMap, OverrideMap types
+- `lib/dates.ts`: getWeekKey, getWeekDates, fmtTime/Range, locColorClass, getEffectiveClass, display constants
+- `app/globals.css`: full design system — colors, calendar grid, class blocks, location color schemes, modals, toast
+- `app/api/classes|signups|overrides/route.ts`: GET routes using anon key
+- `components/ClassBlock.tsx`: positioned class card with live spot count
+- `components/WeekNav.tsx`: prev/next week navigation
+- `components/Calendar.tsx`: 7-day grid with Supabase Realtime (channels torn down on week change)
+- `components/SchedulePage.tsx`: client shell with header
+- `app/page.tsx`: server component fetches initial classes, revalidates every 60s
+- Preview URL: https://aop-weekly-schedule-c9wwnoe7e-sarede-s-projects.vercel.app
 
 ### Phase 3 — Signup / Cancel Flow
 - Port `SignupModal.tsx` with sign up + cancel tabs
