@@ -313,10 +313,20 @@ Vercel will auto-deploy the `beta` branch to a preview URL (e.g. `beta--aopweekl
 - Calendar manages `selectedClassId` internally and renders `<SignupModal>` directly
 - Preview URL: https://aop-weekly-schedule-70h3xkyh4-sarede-s-projects.vercel.app
 
-### Phase 4 — Admin Panel
-- Port `AdminPanel.tsx` behind `/admin` (Clerk-protected)
-- Implement admin API routes for class CRUD + override management
-- Port broadcast email + weekly reminder + "email all ever" features
+### Phase 4 — Admin Panel ✅
+- `app/admin/layout.tsx`: Clerk auth guard (defense-in-depth; proxy.ts also covers it)
+- `app/admin/page.tsx`: server component; renders `AdminPanel`
+- `components/AdminPanel.tsx`: week nav, class list, inline edit/cancel/reset/delete, inline signup viewer, email tools
+- `POST /api/classes` + `DELETE /api/classes?id` — add / remove forever (admin auth)
+- `PUT /api/overrides` — upsert override, auto-notifies students of update or cancellation
+- `DELETE /api/overrides?week_key=&class_id=` — reset override
+- `GET /api/students` — unique student list (admin auth)
+- `POST /api/admin/broadcast` — broadcast to all students + weekly reminder emails
+- `DELETE /api/signups?id=` — admin removal by UUID (no cancel email)
+- `app/sign-in/[[...sign-in]]/page.tsx` — Clerk SignIn component
+- SchedulePage header gets ⚙ Admin link → /admin
+- `lib/email.ts`: `notifyStudentsClassUpdate` + `notifyStudentsClassCancelled`
+- Preview URL: https://aop-weekly-schedule-7q4d419n9-sarede-s-projects.vercel.app
 
 ### Phase 5 — Migration & Go-Live
 - Run data migration script against production
