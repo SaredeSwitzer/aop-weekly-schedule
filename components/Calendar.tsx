@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useReducer, useCallback } from "react";
+import { useEffect, useReducer, useCallback, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import {
   DISPLAY_ORDER, DISPLAY_SHORT, START_HOUR, END_HOUR, HOUR_PX,
@@ -9,6 +9,7 @@ import {
 import type { Class, Signup, Override, SignupMap, OverrideMap } from "@/lib/types";
 import ClassBlock from "./ClassBlock";
 import WeekNav from "./WeekNav";
+import SignupModal from "./SignupModal";
 
 type State = {
   weekKey: string;
@@ -69,10 +70,10 @@ function reducer(state: State, action: Action): State {
 
 type Props = {
   classes: Class[];
-  onClassClick: (id: string) => void;
 };
 
-export default function Calendar({ classes, onClassClick }: Props) {
+export default function Calendar({ classes }: Props) {
+  const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
   const [state, dispatch] = useReducer(reducer, {
     weekKey: getWeekKey(new Date()),
     signups: {},
@@ -199,7 +200,7 @@ export default function Calendar({ classes, onClassClick }: Props) {
                         key={cls.id}
                         cls={cls}
                         signups={signups}
-                        onClick={onClassClick}
+                        onClick={setSelectedClassId}
                       />
                     ))}
                   </div>
@@ -215,6 +216,23 @@ export default function Calendar({ classes, onClassClick }: Props) {
           </div>
         )}
       </div>
+
+      {selectedClassId && (() => {
+        const cls = classes
+          .map((c) => getEffectiveClass(c, overrides))
+          .find((c): c is Class => c !== null && c.id === selectedClassId);
+        if (!cls) return null;
+        return (
+          <SignupModal
+            cls={cls}
+            signups={signups[selectedClassId] ?? []}
+            weekKey={weekKey}
+            onClose={() => setSelectedClassId(null)}
+            onSignupSuccess={() => setSelectedClassId(null)}
+            onCancelSuccess={() => setSelectedClassId(null)}
+          />
+        );
+      })()}
     </>
   );
 }
