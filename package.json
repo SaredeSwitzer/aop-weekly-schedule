@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "migrate": "npx tsx scripts/migrate.ts",
+    "migrate:dry": "npx tsx scripts/migrate.ts --dry-run"
   },
   "dependencies": {
     "@clerk/nextjs": "^7.4.3",

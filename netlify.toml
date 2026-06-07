@@ -1,0 +1,15 @@
+# After go-live: this file tells Netlify to redirect all traffic to the Vercel app.
+# Fill in VERCEL_PROD_URL before merging beta → main.
+# Example: https://aop-weekly-schedule.vercel.app
+#          or your custom domain if configured in Vercel.
+
+[build]
+  # No build — just redirect
+  publish = "public"
+  command = "echo 'Redirecting to Vercel'"
+
+[[redirects]]
+  from   = "/*"
+  to     = "https://VERCEL_PROD_URL/:splat"
+  status = 301
+  force  = true
