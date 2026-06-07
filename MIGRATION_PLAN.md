@@ -328,11 +328,24 @@ Vercel will auto-deploy the `beta` branch to a preview URL (e.g. `beta--aopweekl
 - `lib/email.ts`: `notifyStudentsClassUpdate` + `notifyStudentsClassCancelled`
 - Preview URL: https://aop-weekly-schedule-7q4d419n9-sarede-s-projects.vercel.app
 
-### Phase 5 — Migration & Go-Live
-- Run data migration script against production
-- Smoke test all features on Vercel preview URL
-- Point domain / update Netlify redirect
-- Decommission Firebase + Netlify
+### Phase 5 — Migration & Go-Live ✅ (script ready — cutover pending)
+- `scripts/migrate.ts`: Firebase → Supabase one-time migration (classes, signups, overrides)
+  - Run: `npm run migrate:dry` then `npm run migrate`
+  - Reads `.env.local`; dedup-safe for signups; upsert for classes/overrides
+- `netlify.toml`: post-merge redirect (fill in `VERCEL_PROD_URL` before merging)
+- `.gitignore`: added `scripts/firebase-export.json` (PII)
+
+**Cutover checklist (complete these steps in order):**
+1. **Firebase export**: Firebase console → Realtime Database → ⋮ → Export JSON → save as `scripts/firebase-export.json`
+2. **Dry run**: `npm run migrate:dry` — verify counts look right
+3. **Add Brevo key**: Vercel dashboard → Environment Variables → add real `BREVO_API_KEY`
+4. **Migrate data**: `npm run migrate`
+5. **Smoke test**: open preview URL, verify classes appear, sign up for a class, check email
+6. **Deploy to production**: `npx vercel deploy --prod` → note the production URL
+7. **Update netlify.toml**: replace `VERCEL_PROD_URL` placeholder with actual URL
+8. **Merge beta → main**: `git checkout main && git merge beta && git push`
+   - Netlify redeploys main with the redirect config → old URL forwards to Vercel
+9. **Decommission Firebase**: optional, once traffic on old URL drops to zero
 
 ---
 
