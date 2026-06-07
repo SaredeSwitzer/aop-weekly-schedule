@@ -328,7 +328,7 @@ Vercel will auto-deploy the `beta` branch to a preview URL (e.g. `beta--aopweekl
 - `lib/email.ts`: `notifyStudentsClassUpdate` + `notifyStudentsClassCancelled`
 - Preview URL: https://aop-weekly-schedule-7q4d419n9-sarede-s-projects.vercel.app
 
-### Phase 5 — Migration & Go-Live ✅ (script ready — cutover pending)
+### Phase 5 — Migration & Go-Live ✅ COMPLETE
 - `scripts/migrate.ts`: Firebase → Supabase one-time migration (classes, signups, overrides)
   - Run: `npm run migrate:dry` then `npm run migrate`
   - Reads `.env.local`; dedup-safe for signups; upsert for classes/overrides
