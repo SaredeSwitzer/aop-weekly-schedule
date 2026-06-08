@@ -3,8 +3,8 @@
 import { useEffect, useReducer, useCallback, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import {
-  DISPLAY_ORDER, DISPLAY_SHORT, START_HOUR, END_HOUR, HOUR_PX,
-  getWeekDates, getWeekKey, getEffectiveClass,
+  DAYS, DISPLAY_ORDER, DISPLAY_SHORT, START_HOUR, END_HOUR, HOUR_PX,
+  getWeekDates, getWeekKey, getEffectiveClass, fmtTimeRange, fmtDate, locColorClass,
 } from "@/lib/dates";
 import type { Class, Signup, Override, SignupMap, OverrideMap } from "@/lib/types";
 import ClassBlock from "./ClassBlock";
@@ -89,9 +89,16 @@ export default function Calendar({ classes }: Props) {
     loading: true,
   });
 
+  // Default selected mobile day to today's column
+  const [selectedMobileDay, setSelectedMobileDay] = useState(() => {
+    const jsDay = new Date().getDay(); // 0=Sun
+    const ourDay = (jsDay + 6) % 7;   // 0=Mon…6=Sun
+    const col = DISPLAY_ORDER.indexOf(ourDay);
+    return col >= 0 ? col : 0;
+  });
+
   const { weekKey, signups, overrides, loading } = state;
 
-  // Fetch signups + overrides for current week
   const fetchWeekData = useCallback(async (key: string) => {
     const [sRes, oRes] = await Promise.all([
       fetch(`/api/signups?week=${key}`),
@@ -104,7 +111,6 @@ export default function Calendar({ classes }: Props) {
     dispatch({ type: "SET_DATA", signups: toSignupMap(signupRows), overrides: toOverrideMap(overrideRows) });
   }, []);
 
-  // Subscribe to Realtime for current week
   useEffect(() => {
     fetchWeekData(weekKey);
 
@@ -151,6 +157,13 @@ export default function Calendar({ classes }: Props) {
   const totalHours = END_HOUR - START_HOUR;
   const bodyH = totalHours * HOUR_PX;
 
+  // Classes for the selected mobile day
+  const mobileDayIdx = DISPLAY_ORDER[selectedMobileDay];
+  const mobileDayClasses = classes
+    .map((c) => getEffectiveClass(c, overrides))
+    .filter((c): c is Class => c !== null && c.day === mobileDayIdx)
+    .sort((a, b) => a.time.localeCompare(b.time));
+
   return (
     <>
       <div className="week-nav-bar">
@@ -159,9 +172,58 @@ export default function Calendar({ classes }: Props) {
         </div>
       </div>
       <div className="main">
-<div className="calendar-scroll">
+
+        {/* ── Mobile: tap-a-day list view (hidden on desktop) ── */}
+        <div className="mobile-day-nav">
+          {dates.map((date, col) => {
+            const isToday = date.toDateString() === todayStr;
+            return (
+              <button
+                key={col}
+                className={`mobile-day-btn${col === selectedMobileDay ? " selected" : ""}${isToday ? " today" : ""}`}
+                onClick={() => setSelectedMobileDay(col)}
+              >
+                <div className="mobile-day-name">{DISPLAY_SHORT[col]}</div>
+                <div className="mobile-day-num">{date.getDate()}</div>
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="mobile-day-list">
+          <div className="mobile-day-header">
+            {DAYS[mobileDayIdx]}, {fmtDate(dates[selectedMobileDay])}
+          </div>
+          {loading ? (
+            <div style={{ textAlign: "center", padding: "32px", color: "#aaa" }}>
+              <span className="spinner" /> Loading…
+            </div>
+          ) : mobileDayClasses.length === 0 ? (
+            <div className="mobile-no-classes">No classes this day</div>
+          ) : mobileDayClasses.map((cls) => {
+            const taken = signups[cls.id]?.length ?? 0;
+            const full = taken >= cls.capacity;
+            const spotsLeft = cls.capacity - taken;
+            return (
+              <button
+                key={cls.id}
+                className={`mobile-class-card ${locColorClass(cls.location, full)}`}
+                onClick={() => setSelectedClassId(cls.id)}
+              >
+                <div className="mobile-card-time">{fmtTimeRange(cls.time, cls.end_time)}</div>
+                <div className="mobile-card-name">{cls.class_name}</div>
+                {cls.location && <div className="mobile-card-loc">📍 {cls.location}</div>}
+                <div className="mobile-card-spots">
+                  {full ? "Full" : `${spotsLeft} spot${spotsLeft !== 1 ? "s" : ""} open`} · 👥 {taken}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* ── Desktop: timed grid (hidden on mobile) ── */}
+        <div className="calendar-scroll">
           <div className="calendar-wrap">
-            {/* Header row */}
             <div className="cal-header">
               <div style={{ borderRight: "1px solid #ede5dc" }} />
               {dates.map((date, col) => {
@@ -175,9 +237,7 @@ export default function Calendar({ classes }: Props) {
               })}
             </div>
 
-            {/* Body */}
             <div className="cal-body">
-              {/* Time gutter */}
               <div className="time-col">
                 {Array.from({ length: totalHours }, (_, h) => {
                   const hour = START_HOUR + h;
@@ -190,7 +250,6 @@ export default function Calendar({ classes }: Props) {
                 })}
               </div>
 
-              {/* Day columns */}
               {Array.from({ length: 7 }, (_, col) => {
                 const dayIdx = DISPLAY_ORDER[col];
                 const dayClasses = classes
@@ -222,7 +281,7 @@ export default function Calendar({ classes }: Props) {
         </div>
 
         {loading && (
-          <div style={{ textAlign: "center", padding: "40px", color: "#aaa" }}>
+          <div className="desktop-loading" style={{ textAlign: "center", padding: "40px", color: "#aaa" }}>
             <span className="spinner" /> Loading schedule…
           </div>
         )}
