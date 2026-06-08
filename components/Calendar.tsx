@@ -46,14 +46,22 @@ function reducer(state: State, action: Action): State {
       return { ...state, signups: action.signups, overrides: action.overrides, loading: false };
     case "SIGNUP_CHANGE": {
       const map = { ...state.signups };
-      const list = [...(map[action.signup.class_id] ?? [])];
       if (action.event === "INSERT") {
+        const list = [...(map[action.signup.class_id] ?? [])];
         list.push(action.signup);
+        map[action.signup.class_id] = list;
       } else {
-        const idx = list.findIndex((s) => s.id === action.signup.id);
-        if (idx !== -1) list.splice(idx, 1);
+        // DELETE payload may only include id — search all buckets
+        for (const classId of Object.keys(map)) {
+          const idx = map[classId].findIndex((s) => s.id === action.signup.id);
+          if (idx !== -1) {
+            const list = [...map[classId]];
+            list.splice(idx, 1);
+            map[classId] = list;
+            break;
+          }
+        }
       }
-      map[action.signup.class_id] = list;
       return { ...state, signups: map };
     }
     case "OVERRIDE_CHANGE": {
@@ -145,7 +153,11 @@ export default function Calendar({ classes }: Props) {
 
   return (
     <>
-      <WeekNav weekKey={weekKey} onChange={handleWeekChange} />
+      <div className="week-nav-bar">
+        <div className="week-nav-inner">
+          <WeekNav weekKey={weekKey} onChange={handleWeekChange} />
+        </div>
+      </div>
       <div className="main">
         <p className="scroll-hint">← Swipe to see full week →</p>
         <div className="calendar-scroll">
@@ -228,8 +240,8 @@ export default function Calendar({ classes }: Props) {
             signups={signups[selectedClassId] ?? []}
             weekKey={weekKey}
             onClose={() => setSelectedClassId(null)}
-            onSignupSuccess={() => setSelectedClassId(null)}
-            onCancelSuccess={() => setSelectedClassId(null)}
+            onSignupSuccess={() => { setSelectedClassId(null); fetchWeekData(weekKey); }}
+            onCancelSuccess={() => { setSelectedClassId(null); fetchWeekData(weekKey); }}
           />
         );
       })()}

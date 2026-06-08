@@ -48,6 +48,10 @@ body {
 .week-label { flex: 1; text-align: center; font-size: 14px; font-weight: 500; }
 .this-week-badge { margin-left: 8px; font-size: 11px; background: #c4956a; padding: 2px 8px; border-radius: 20px; }
 
+/* ── Week nav bar ───────────────────────────────────────────────────────── */
+.week-nav-bar   { background: linear-gradient(135deg, #3d2e1e 0%, #6b4c30 100%); padding: 0 24px 16px; }
+.week-nav-inner { max-width: 1100px; margin: 0 auto; }
+
 /* ── Main layout ────────────────────────────────────────────────────────── */
 .main { max-width: 1100px; margin: 0 auto; padding: 20px 16px 60px; }
 
@@ -85,8 +89,8 @@ body {
   transition: all 0.15s; border: none; text-align: left;
 }
 .class-block:hover  { filter: brightness(0.93); transform: scale(1.01); }
-.class-block.full   { opacity: 0.55; cursor: default; }
-.class-block.full:hover { filter: none; transform: none; }
+.class-block.full   { opacity: 0.7; }
+.class-block.full:hover { filter: brightness(0.93); transform: scale(1.01); }
 
 .cb-time  { font-size: 9px; opacity: 0.8; margin-bottom: 1px; font-weight: 500; }
 .cb-name  { font-family: var(--font-dm-serif), serif; font-size: 12px; line-height: 1.2; margin-bottom: 1px; }
@@ -113,6 +117,7 @@ body {
 .modal {
   background: white; border-radius: 16px; padding: 28px; width: 100%;
   max-width: 420px; box-shadow: 0 8px 40px rgba(0,0,0,0.18);
+  max-height: 90vh; overflow-y: auto;
 }
 .modal h3 { font-family: var(--font-dm-serif), serif; font-size: 22px; margin-bottom: 5px; }
 .modal-location { font-size: 13px; color: #a08060; margin-bottom: 8px; min-height: 18px; }
