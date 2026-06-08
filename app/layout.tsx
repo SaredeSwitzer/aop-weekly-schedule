@@ -17,6 +17,15 @@ const dmSerifDisplay = DM_Serif_Display({
 export const metadata: Metadata = {
   title: "AOP Shala NYC — Weekly Schedule",
   description: "Yoga class schedule and signups for AOP Shala NYC",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "AOP Shala",
+  },
+  icons: {
+    apple: "/icon-192.png",
+  },
 };
 
 export default function RootLayout({

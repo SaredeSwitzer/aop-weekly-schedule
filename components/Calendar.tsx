@@ -159,8 +159,7 @@ export default function Calendar({ classes }: Props) {
         </div>
       </div>
       <div className="main">
-        <p className="scroll-hint">← Swipe to see full week →</p>
-        <div className="calendar-scroll">
+<div className="calendar-scroll">
           <div className="calendar-wrap">
             {/* Header row */}
             <div className="cal-header">

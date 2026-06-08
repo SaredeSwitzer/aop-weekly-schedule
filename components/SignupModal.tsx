@@ -123,15 +123,22 @@ export default function SignupModal({ cls, signups, weekKey, onClose, onSignupSu
         {cls.location && (
           <div className="modal-location">📍 {cls.location}</div>
         )}
-        <div style={{ fontSize: 12, color: "#bbb", marginBottom: taken > 0 ? 8 : 14 }}>
+        <div style={{ fontSize: 12, color: "#bbb", marginBottom: 10 }}>
           {cls.capacity - taken} of {cls.capacity} spots remaining
         </div>
 
-        {taken > 0 && (
-          <div style={{ fontSize: 12, color: "#9a7d5e", marginBottom: 14, lineHeight: 1.6 }}>
-            {signups.map((s) => s.name).join(" · ")}
+        <div style={{ background: "#f5ece0", borderRadius: 9, padding: "10px 14px", marginBottom: 14 }}>
+          <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px", color: "#c4956a", marginBottom: 5 }}>
+            👥 Signed up
           </div>
-        )}
+          {taken === 0 ? (
+            <div style={{ fontSize: 13, color: "#bbb" }}>No one yet — be the first!</div>
+          ) : (
+            <div style={{ fontSize: 13, color: "#5a3e28", lineHeight: 1.7 }}>
+              {signups.map((s) => <div key={s.id}>{s.name}</div>)}
+            </div>
+          )}
+        </div>
 
         {/* Tabs */}
         <div className="tab-bar">
