@@ -19,6 +19,7 @@ body {
   font-family: var(--font-dm-sans), 'DM Sans', sans-serif;
   color: var(--brown-dark);
   min-height: 100vh;
+  overflow-x: hidden;
 }
 
 /* ── Header ────────────────────────────────────────────────────────────── */
@@ -26,6 +27,7 @@ body {
   background: linear-gradient(135deg, #3d2e1e 0%, #6b4c30 100%);
   padding: 16px 24px;
   color: white;
+  width: 100%;
 }
 .header-inner  { max-width: 1100px; margin: 0 auto; }
 .header-top    { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
@@ -49,7 +51,7 @@ body {
 .this-week-badge { margin-left: 8px; font-size: 11px; background: #c4956a; padding: 2px 8px; border-radius: 20px; }
 
 /* ── Week nav bar ───────────────────────────────────────────────────────── */
-.week-nav-bar   { background: linear-gradient(135deg, #3d2e1e 0%, #6b4c30 100%); padding: 0 24px 16px; }
+.week-nav-bar   { background: linear-gradient(135deg, #3d2e1e 0%, #6b4c30 100%); padding: 0 24px 16px; width: 100%; }
 .week-nav-inner { max-width: 1100px; margin: 0 auto; }
 
 /* ── Main layout ────────────────────────────────────────────────────────── */
