@@ -12,7 +12,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const client = await clerkClient();
   const user = await client.users.getUser(userId);
   const userEmails = user.emailAddresses.map((e) => e.emailAddress);
-  if (!userEmails.some((e) => ALLOWED_EMAILS.includes(e))) redirect("/");
+  if (!userEmails.some((e) => ALLOWED_EMAILS.includes(e))) redirect("/sign-out");
 
   return <>{children}</>;
 }
