@@ -144,6 +144,17 @@ body {
 }
 .btn-cancel:hover { border-color: var(--gold); color: var(--brown-dark); }
 
+/* ── Modal compact layout for landscape phones ──────────────────────────── */
+@media (max-height: 500px) {
+  .overlay { padding: 6px; align-items: flex-start; }
+  .modal { padding: 14px 16px; border-radius: 10px; max-height: 96vh; }
+  .modal h3 { font-size: 17px; margin-bottom: 2px; }
+  .modal-location { margin-bottom: 4px; min-height: auto; }
+  .field-group { margin-bottom: 8px; }
+  .modal-actions { margin-top: 10px; }
+  .tab-bar { margin-bottom: 10px; }
+}
+
 /* ── Tabs ───────────────────────────────────────────────────────────────── */
 .tab-bar { display: flex; border-bottom: 1.5px solid var(--border-soft); margin-bottom: 18px; }
 .tab-btn { flex: 1; padding: 9px; background: none; border: none; cursor: pointer; font-size: 13px; color: var(--brown-light); font-family: var(--font-dm-sans), sans-serif; font-weight: 500; border-bottom: 2px solid transparent; margin-bottom: -1.5px; }
