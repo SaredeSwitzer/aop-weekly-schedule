@@ -123,9 +123,15 @@ export default function SignupModal({ cls, signups, weekKey, onClose, onSignupSu
         {cls.location && (
           <div className="modal-location">📍 {cls.location}</div>
         )}
-        <div style={{ fontSize: 12, color: "#bbb", marginBottom: 14 }}>
+        <div style={{ fontSize: 12, color: "#bbb", marginBottom: taken > 0 ? 8 : 14 }}>
           {cls.capacity - taken} of {cls.capacity} spots remaining
         </div>
+
+        {taken > 0 && (
+          <div style={{ fontSize: 12, color: "#9a7d5e", marginBottom: 14, lineHeight: 1.6 }}>
+            {signups.map((s) => s.name).join(" · ")}
+          </div>
+        )}
 
         {/* Tabs */}
         <div className="tab-bar">

@@ -28,7 +28,7 @@ export default function ClassBlock({ cls, signups, onClick }: Props) {
     <button
       className={`class-block ${colorClass}`}
       style={{ top, height }}
-      onClick={() => !full && onClick(cls.id)}
+      onClick={() => onClick(cls.id)}
       aria-label={`${cls.class_name} at ${fmtTimeRange(cls.time, cls.end_time)}`}
     >
       <div className="cb-time">{fmtTimeRange(cls.time, cls.end_time)}</div>

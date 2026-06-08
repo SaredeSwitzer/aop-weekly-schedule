@@ -4,9 +4,11 @@
 #          or your custom domain if configured in Vercel.
 
 [build]
-  # No build — just redirect
   publish = "public"
   command = "echo 'Redirecting to Vercel'"
+
+[build.environment]
+  NETLIFY_USE_NEXT_RUNTIME = "false"
 
 [[redirects]]
   from   = "/*"

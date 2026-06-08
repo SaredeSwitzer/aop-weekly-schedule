@@ -49,9 +49,8 @@ export async function POST(req: NextRequest) {
     .select().single();
   if (insertErr) return NextResponse.json({ error: insertErr.message }, { status: 500 });
 
-  // Send emails (fire-and-forget — don't block the response)
   const slotDate = getSlotDate(cls.day, week_key);
-  sendSignupEmails({
+  await sendSignupEmails({
     className: ov?.class_name ?? cls.class_name,
     classTime: fmtTimeRange(ov?.time ?? cls.time, ov?.end_time ?? cls.end_time),
     classDate: fmtDateLong(slotDate),
@@ -107,7 +106,7 @@ export async function DELETE(req: NextRequest) {
 
   // Send cancel emails before deleting
   const slotDate = getSlotDate(cls.day, week_key);
-  sendCancelEmails({
+  await sendCancelEmails({
     className: ov?.class_name ?? cls.class_name,
     classTime: fmtTimeRange(ov?.time ?? cls.time, ov?.end_time ?? cls.end_time),
     classDate: fmtDateLong(slotDate),
