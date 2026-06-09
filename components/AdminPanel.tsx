@@ -28,21 +28,29 @@ type NewForm  = { day: string; time: string; end_time: string; class_name: strin
 const DEFAULT_NEW: NewForm = { day: "0", time: "10:00", end_time: "", class_name: "Ashtanga Open Practice", location: "", capacity: "10" };
 
 function LocationField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  const isPreset = PRESET_LOCATIONS.includes(value);
-  const selectVal = isPreset || value === "" ? value : "Other";
+  const [showCustom, setShowCustom] = useState(!PRESET_LOCATIONS.includes(value) && value !== "");
+  const selectVal = showCustom ? "Other" : value;
   return (
     <div style={{ display: "flex", gap: 6 }}>
       <select
         className="input-field"
         value={selectVal}
-        onChange={(e) => onChange(e.target.value === "Other" ? "" : e.target.value)}
+        onChange={(e) => {
+          if (e.target.value === "Other") {
+            setShowCustom(true);
+            onChange("");
+          } else {
+            setShowCustom(false);
+            onChange(e.target.value);
+          }
+        }}
         style={{ flex: 1 }}
       >
         <option value="">Select location…</option>
         {PRESET_LOCATIONS.map((l) => <option key={l}>{l}</option>)}
         <option value="Other">Other…</option>
       </select>
-      {selectVal === "Other" && (
+      {showCustom && (
         <input
           className="input-field"
           type="text"
