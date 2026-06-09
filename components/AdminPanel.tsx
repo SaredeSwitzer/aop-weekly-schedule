@@ -10,7 +10,8 @@ import {
 import type { Class, Signup, Override, SignupMap, OverrideMap } from "@/lib/types";
 import WeekNav from "./WeekNav";
 
-const PRESET_LOCATIONS = ["102 West 80th St", "21 West End Ave", "Turtle Pond / Central Park", "Zoom"];
+const DEFAULT_LOCATIONS = ["102 West 80th St", "21 West End Ave", "Turtle Pond / Central Park", "Zoom"];
+const LS_KEY = "aop_locations";
 
 const DAY_OPTIONS = [
   { value: 6, label: "Sunday" },
@@ -27,65 +28,43 @@ type NewForm  = { day: string; time: string; end_time: string; class_name: strin
 
 const DEFAULT_NEW: NewForm = { day: "0", time: "10:00", end_time: "", class_name: "Ashtanga Open Practice", location: "", capacity: "10" };
 
-function LocationField({ value, onChange, extraLocations = [], deletableLocations = [], onDeleteLocation }: {
+function LocationField({ value, onChange, managedLocations }: {
   value: string;
   onChange: (v: string) => void;
-  extraLocations?: string[];
-  deletableLocations?: string[];
-  onDeleteLocation?: (loc: string) => void;
+  managedLocations: string[];
 }) {
-  const allPresets = [...PRESET_LOCATIONS, ...extraLocations];
-  const [showCustom, setShowCustom] = useState(!allPresets.includes(value) && value !== "");
+  const [showCustom, setShowCustom] = useState(!managedLocations.includes(value) && value !== "");
   const selectVal = showCustom ? "Other" : value;
   return (
-    <div>
-      <div style={{ display: "flex", gap: 6 }}>
-        <select
+    <div style={{ display: "flex", gap: 6 }}>
+      <select
+        className="input-field"
+        value={selectVal}
+        onChange={(e) => {
+          if (e.target.value === "Other") {
+            setShowCustom(true);
+            onChange("");
+          } else {
+            setShowCustom(false);
+            onChange(e.target.value);
+          }
+        }}
+        style={{ flex: 1 }}
+      >
+        <option value="">Select location…</option>
+        {managedLocations.map((l) => <option key={l}>{l}</option>)}
+        <option value="Other">Other…</option>
+      </select>
+      {showCustom && (
+        <input
           className="input-field"
-          value={selectVal}
-          onChange={(e) => {
-            if (e.target.value === "Other") {
-              setShowCustom(true);
-              onChange("");
-            } else {
-              setShowCustom(false);
-              onChange(e.target.value);
-            }
-          }}
-          style={{ flex: 1 }}
-        >
-          <option value="">Select location…</option>
-          {PRESET_LOCATIONS.map((l) => <option key={l}>{l}</option>)}
-          {extraLocations.map((l) => <option key={l}>{l}</option>)}
-          <option value="Other">Other…</option>
-        </select>
-        {showCustom && (
-          <input
-            className="input-field"
-            type="text"
-            placeholder="Enter location"
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-            style={{ flex: 2 }}
-            autoFocus
-          />
-        )}
-      </div>
-      {onDeleteLocation && deletableLocations.length > 0 && (
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 6, alignItems: "center" }}>
-          <span style={{ fontSize: 11, color: "#bbb" }}>Saved:</span>
-          {deletableLocations.map((l) => (
-            <span key={l} style={{ display: "inline-flex", alignItems: "center", gap: 2, background: "#f0e8e0", borderRadius: 10, padding: "2px 6px 2px 8px", fontSize: 11, color: "#9a7d5e" }}>
-              {l}
-              <button
-                type="button"
-                onClick={(e) => { e.preventDefault(); onDeleteLocation(l); }}
-                style={{ background: "none", border: "none", cursor: "pointer", color: "#c44", fontSize: 14, lineHeight: 1, padding: 0, marginLeft: 2 }}
-                title={`Remove "${l}"`}
-              >×</button>
-            </span>
-          ))}
-        </div>
+          type="text"
+          placeholder="Enter location"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          style={{ flex: 2 }}
+          autoFocus
+        />
       )}
     </div>
   );
@@ -113,12 +92,26 @@ export default function AdminPanel({ initialClasses }: Props) {
   const [newForm, setNewForm] = useState<NewForm>(DEFAULT_NEW);
   const [addLoading, setAddLoading] = useState(false);
 
-  // Custom (non-preset) locations accumulated from saved classes
-  const [customLocations, setCustomLocations] = useState<string[]>(() =>
-    [...new Set(
-      initialClasses.map((c) => c.location).filter((l): l is string => !!l && !PRESET_LOCATIONS.includes(l))
-    )]
-  );
+  // All manageable locations — persisted to localStorage
+  const [managedLocations, setManagedLocations] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem(LS_KEY);
+      if (saved) {
+        const parsed: string[] = JSON.parse(saved);
+        // Merge with any class locations not yet in the saved list
+        const classLocs = initialClasses.map((c) => c.location).filter((l): l is string => !!l);
+        return [...new Set([...parsed, ...classLocs])];
+      }
+    } catch {}
+    // First time: default locations + whatever's on existing classes
+    const classLocs = initialClasses.map((c) => c.location).filter((l): l is string => !!l);
+    return [...new Set([...DEFAULT_LOCATIONS, ...classLocs])];
+  });
+
+  function saveManagedLocations(next: string[]) {
+    setManagedLocations(next);
+    try { localStorage.setItem(LS_KEY, JSON.stringify(next)); } catch {}
+  }
 
   // Manage locations
   const [showLocations, setShowLocations] = useState(false);
@@ -156,15 +149,18 @@ export default function AdminPanel({ initialClasses }: Props) {
     setLoading(false);
   }, []);
 
-  // Fetch fresh classes on mount so all existing locations appear in Manage card
+  // Fetch fresh classes on mount and merge any new class locations into managedLocations
   useEffect(() => {
     fetch("/api/classes")
       .then((r) => r.json())
       .then((data: Class[]) => {
         setClasses(data);
-        setCustomLocations([...new Set(
-          data.map((c: Class) => c.location).filter((l): l is string => !!l && !PRESET_LOCATIONS.includes(l))
-        )]);
+        const classLocs = data.map((c: Class) => c.location).filter((l): l is string => !!l);
+        setManagedLocations((prev) => {
+          const merged = [...new Set([...prev, ...classLocs])];
+          try { localStorage.setItem(LS_KEY, JSON.stringify(merged)); } catch {}
+          return merged;
+        });
       })
       .catch(() => {});
   }, []);
@@ -212,15 +208,14 @@ export default function AdminPanel({ initialClasses }: Props) {
 
   // ── Location helpers ─────────────────────────────────────────────────────
   function trackLocation(loc: string | null | undefined) {
-    if (!loc || PRESET_LOCATIONS.includes(loc)) return;
-    setCustomLocations((prev) => (prev.includes(loc) ? prev : [...prev, loc]));
+    if (!loc) return;
+    setManagedLocations((prev) => {
+      if (prev.includes(loc)) return prev;
+      const next = [...prev, loc];
+      try { localStorage.setItem(LS_KEY, JSON.stringify(next)); } catch {}
+      return next;
+    });
   }
-
-  function deleteCustomLocation(loc: string) {
-    setCustomLocations((prev) => prev.filter((l) => l !== loc));
-  }
-
-  const deletableLocations = customLocations;
 
   async function renameLocation(oldName: string, newName: string) {
     const trimmed = newName.trim();
@@ -235,14 +230,18 @@ export default function AdminPanel({ initialClasses }: Props) {
       })
     ));
     setClasses((prev) => prev.map((c) => c.location === oldName ? { ...c, location: trimmed } : c));
-    setCustomLocations((prev) => prev.map((l) => l === oldName ? trimmed : l));
+    saveManagedLocations(managedLocations.map((l) => l === oldName ? trimmed : l));
     setEditingLocation(null);
     setLocationLoading(false);
     showToast("Location renamed.");
   }
 
   async function removeLocation(name: string) {
-    if (!confirm(`Remove "${name}" from all classes? Their location will be cleared.`)) return;
+    const count = classes.filter((c) => c.location === name).length;
+    const msg = count > 0
+      ? `Remove "${name}" from the list? It's used by ${count} class${count !== 1 ? "es" : ""} — their location will be cleared.`
+      : `Remove "${name}" from the list?`;
+    if (!confirm(msg)) return;
     setLocationLoading(true);
     const affected = classes.filter((c) => c.location === name);
     await Promise.all(affected.map((c) =>
@@ -253,7 +252,7 @@ export default function AdminPanel({ initialClasses }: Props) {
       })
     ));
     setClasses((prev) => prev.map((c) => c.location === name ? { ...c, location: null } : c));
-    setCustomLocations((prev) => prev.filter((l) => l !== name));
+    saveManagedLocations(managedLocations.filter((l) => l !== name));
     setLocationLoading(false);
     showToast("Location removed.");
   }
@@ -537,29 +536,11 @@ export default function AdminPanel({ initialClasses }: Props) {
             </button>
           </div>
 
-          {showLocations && (() => {
-            const customInUse = [...new Set([
-              ...classes.map((c) => c.location).filter((l): l is string => !!l && !PRESET_LOCATIONS.includes(l)),
-              ...customLocations,
-            ])].sort();
-            return (
+          {showLocations && (
             <div style={{ marginTop: 14 }}>
-              {/* Built-in preset locations */}
-              <div style={{ fontSize: 11, color: "#bbb", textTransform: "uppercase", letterSpacing: "0.4px", marginBottom: 6 }}>Built-in</div>
-              {PRESET_LOCATIONS.map((loc) => (
-                <div key={loc} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 0", borderBottom: "1px solid #f0e8e0" }}>
-                  <span style={{ flex: 1, fontSize: 14, color: "#9a7d5e" }}>📍 {loc}</span>
-                  <span style={{ fontSize: 12, color: "#bbb" }}>
-                    {classes.filter((c) => c.location === loc).length} class{classes.filter((c) => c.location === loc).length !== 1 ? "es" : ""}
-                  </span>
-                  <span style={{ fontSize: 11, color: "#ccc", fontStyle: "italic" }}>built-in</span>
-                </div>
-              ))}
-              {/* Custom locations */}
-              <div style={{ fontSize: 11, color: "#bbb", textTransform: "uppercase", letterSpacing: "0.4px", margin: "14px 0 6px" }}>Custom</div>
-              {customInUse.length === 0 ? (
-                <div style={{ color: "#bbb", fontSize: 13 }}>No custom locations yet.</div>
-              ) : customInUse.map((loc) => (
+              {managedLocations.length === 0 ? (
+                <div style={{ color: "#bbb", fontSize: 13 }}>No locations yet.</div>
+              ) : managedLocations.map((loc) => (
                 <div key={loc} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 0", borderBottom: "1px solid #f0e8e0" }}>
                   {editingLocation === loc ? (
                     <>
@@ -600,8 +581,7 @@ export default function AdminPanel({ initialClasses }: Props) {
                 Rename or remove updates all classes using that location. Removed locations are cleared from those classes.
               </div>
             </div>
-            );
-          })()}
+          )}
         </div>
 
         {/* ── Class list ──────────────────────────────────────────────────── */}
@@ -650,9 +630,7 @@ export default function AdminPanel({ initialClasses }: Props) {
                 <LocationField
                   value={newForm.location}
                   onChange={(v) => setNewForm((f) => ({ ...f, location: v }))}
-                  extraLocations={customLocations}
-                  deletableLocations={deletableLocations}
-                  onDeleteLocation={deleteCustomLocation}
+                  managedLocations={managedLocations}
                 />
               </div>
               <button className="btn-primary" onClick={addNewClass} disabled={addLoading}>
@@ -772,9 +750,7 @@ export default function AdminPanel({ initialClasses }: Props) {
                       <LocationField
                         value={editForm.location}
                         onChange={(v) => setEditForm((f) => f && ({ ...f, location: v }))}
-                        extraLocations={customLocations}
-                        deletableLocations={deletableLocations}
-                        onDeleteLocation={deleteCustomLocation}
+                        managedLocations={managedLocations}
                       />
                     </div>
                     <div style={{ fontSize: 12, color: "#bbb", marginBottom: 10 }}>Students signed up will be notified of changes.</div>
