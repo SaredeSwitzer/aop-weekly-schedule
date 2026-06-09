@@ -49,8 +49,9 @@ export async function POST(req: NextRequest) {
     .select().single();
   if (insertErr) return NextResponse.json({ error: insertErr.message }, { status: 500 });
 
+  // Send signup emails in the background (don't block response)
   const slotDate = getSlotDate(cls.day, week_key);
-  await sendSignupEmails({
+  sendSignupEmails({
     className: ov?.class_name ?? cls.class_name,
     classTime: fmtTimeRange(ov?.time ?? cls.time, ov?.end_time ?? cls.end_time),
     classDate: fmtDateLong(slotDate),
@@ -104,9 +105,13 @@ export async function DELETE(req: NextRequest) {
   const capacity   = ov?.capacity ?? cls.capacity;
   const takenAfter = Math.max(0, (signups?.length ?? 1) - 1);
 
-  // Send cancel emails before deleting
+  // Delete signup first so response is fast
+  const { error: delErr } = await db.from("signups").delete().eq("id", signup.id);
+  if (delErr) return NextResponse.json({ error: delErr.message }, { status: 500 });
+
+  // Send cancel emails in the background (don't block response)
   const slotDate = getSlotDate(cls.day, week_key);
-  await sendCancelEmails({
+  sendCancelEmails({
     className: ov?.class_name ?? cls.class_name,
     classTime: fmtTimeRange(ov?.time ?? cls.time, ov?.end_time ?? cls.end_time),
     classDate: fmtDateLong(slotDate),
@@ -116,10 +121,6 @@ export async function DELETE(req: NextRequest) {
     takenAfter,
     capacity,
   }).catch(console.error);
-
-  // Delete signup
-  const { error: delErr } = await db.from("signups").delete().eq("id", signup.id);
-  if (delErr) return NextResponse.json({ error: delErr.message }, { status: 500 });
 
   return NextResponse.json({ success: true });
 }
