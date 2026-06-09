@@ -27,8 +27,9 @@ type NewForm  = { day: string; time: string; end_time: string; class_name: strin
 
 const DEFAULT_NEW: NewForm = { day: "0", time: "10:00", end_time: "", class_name: "Ashtanga Open Practice", location: "", capacity: "10" };
 
-function LocationField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  const [showCustom, setShowCustom] = useState(!PRESET_LOCATIONS.includes(value) && value !== "");
+function LocationField({ value, onChange, extraLocations = [] }: { value: string; onChange: (v: string) => void; extraLocations?: string[] }) {
+  const allPresets = [...PRESET_LOCATIONS, ...extraLocations];
+  const [showCustom, setShowCustom] = useState(!allPresets.includes(value) && value !== "");
   const selectVal = showCustom ? "Other" : value;
   return (
     <div style={{ display: "flex", gap: 6 }}>
@@ -48,6 +49,7 @@ function LocationField({ value, onChange }: { value: string; onChange: (v: strin
       >
         <option value="">Select location…</option>
         {PRESET_LOCATIONS.map((l) => <option key={l}>{l}</option>)}
+        {extraLocations.map((l) => <option key={l}>{l}</option>)}
         <option value="Other">Other…</option>
       </select>
       {showCustom && (
@@ -157,6 +159,11 @@ export default function AdminPanel({ initialClasses }: Props) {
     setViewingId(null);
     setEmailClassForm(null);
   }
+
+  // ── Extra locations from saved classes ──────────────────────────────────
+  const extraLocations = [...new Set(
+    classes.map((c) => c.location).filter((l): l is string => !!l && !PRESET_LOCATIONS.includes(l))
+  )];
 
   // ── Sorted class list ────────────────────────────────────────────────────
   const sortedClasses = [...classes].sort((a, b) => {
@@ -465,7 +472,7 @@ export default function AdminPanel({ initialClasses }: Props) {
               </div>
               <div style={{ marginBottom: 12 }}>
                 <label className="field-label">Location</label>
-                <LocationField value={newForm.location} onChange={(v) => setNewForm((f) => ({ ...f, location: v }))} />
+                <LocationField value={newForm.location} onChange={(v) => setNewForm((f) => ({ ...f, location: v }))} extraLocations={extraLocations} />
               </div>
               <button className="btn-primary" onClick={addNewClass} disabled={addLoading}>
                 {addLoading ? "Adding…" : "+ Add Class"}
@@ -581,7 +588,7 @@ export default function AdminPanel({ initialClasses }: Props) {
                     </div>
                     <div style={{ marginBottom: 12 }}>
                       <label className="field-label">Location</label>
-                      <LocationField value={editForm.location} onChange={(v) => setEditForm((f) => f && ({ ...f, location: v }))} />
+                      <LocationField value={editForm.location} onChange={(v) => setEditForm((f) => f && ({ ...f, location: v }))} extraLocations={extraLocations} />
                     </div>
                     <div style={{ fontSize: 12, color: "#bbb", marginBottom: 10 }}>Students signed up will be notified of changes.</div>
                     <div style={{ display: "flex", gap: 8 }}>

@@ -80,7 +80,8 @@ type Props = {
   classes: Class[];
 };
 
-export default function Calendar({ classes }: Props) {
+export default function Calendar({ classes: initialClasses }: Props) {
+  const [classes, setClasses] = useState<Class[]>(initialClasses);
   const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
   const [state, dispatch] = useReducer(reducer, {
     weekKey: getWeekKey(new Date()),
@@ -109,6 +110,22 @@ export default function Calendar({ classes }: Props) {
       oRes.json(),
     ]);
     dispatch({ type: "SET_DATA", signups: toSignupMap(signupRows), overrides: toOverrideMap(overrideRows) });
+  }, []);
+
+  useEffect(() => {
+    const ch = supabase
+      .channel("classes-realtime")
+      .on("postgres_changes", { event: "*", schema: "public", table: "classes" }, (payload) => {
+        if (payload.eventType === "INSERT") {
+          setClasses((prev) => [...prev, payload.new as Class]);
+        } else if (payload.eventType === "UPDATE") {
+          setClasses((prev) => prev.map((c) => c.id === (payload.new as Class).id ? payload.new as Class : c));
+        } else if (payload.eventType === "DELETE") {
+          setClasses((prev) => prev.filter((c) => c.id !== (payload.old as Class).id));
+        }
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
   }, []);
 
   useEffect(() => {
