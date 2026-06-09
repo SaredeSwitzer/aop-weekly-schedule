@@ -112,6 +112,14 @@ export default function Calendar({ classes: initialClasses }: Props) {
     dispatch({ type: "SET_DATA", signups: toSignupMap(signupRows), overrides: toOverrideMap(overrideRows) });
   }, []);
 
+  // Fetch fresh classes on mount so stale server-rendered data doesn't persist
+  useEffect(() => {
+    fetch("/api/classes")
+      .then((r) => r.json())
+      .then((data: Class[]) => setClasses(data))
+      .catch(() => {});
+  }, []);
+
   useEffect(() => {
     const ch = supabase
       .channel("classes-realtime")
