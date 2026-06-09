@@ -120,6 +120,12 @@ export default function AdminPanel({ initialClasses }: Props) {
     )]
   );
 
+  // Manage locations
+  const [showLocations, setShowLocations] = useState(false);
+  const [editingLocation, setEditingLocation] = useState<string | null>(null);
+  const [editingLocationValue, setEditingLocationValue] = useState("");
+  const [locationLoading, setLocationLoading] = useState(false);
+
   // Broadcast / reminder
   const [showBroadcast, setShowBroadcast] = useState(false);
   const [broadcastForm, setBroadcastForm] = useState({ subject: "", body: "" });
@@ -202,6 +208,42 @@ export default function AdminPanel({ initialClasses }: Props) {
   }
 
   const deletableLocations = customLocations;
+
+  async function renameLocation(oldName: string, newName: string) {
+    const trimmed = newName.trim();
+    if (!trimmed || trimmed === oldName) { setEditingLocation(null); return; }
+    setLocationLoading(true);
+    const affected = classes.filter((c) => c.location === oldName);
+    await Promise.all(affected.map((c) =>
+      fetch("/api/classes", {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ id: c.id, location: trimmed }),
+      })
+    ));
+    setClasses((prev) => prev.map((c) => c.location === oldName ? { ...c, location: trimmed } : c));
+    setCustomLocations((prev) => prev.map((l) => l === oldName ? trimmed : l));
+    setEditingLocation(null);
+    setLocationLoading(false);
+    showToast("Location renamed.");
+  }
+
+  async function removeLocation(name: string) {
+    if (!confirm(`Remove "${name}" from all classes? Their location will be cleared.`)) return;
+    setLocationLoading(true);
+    const affected = classes.filter((c) => c.location === name);
+    await Promise.all(affected.map((c) =>
+      fetch("/api/classes", {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ id: c.id, location: null }),
+      })
+    ));
+    setClasses((prev) => prev.map((c) => c.location === name ? { ...c, location: null } : c));
+    setCustomLocations((prev) => prev.filter((l) => l !== name));
+    setLocationLoading(false);
+    showToast("Location removed.");
+  }
 
   // ── Sorted class list ────────────────────────────────────────────────────
   const sortedClasses = [...classes].sort((a, b) => {
@@ -464,6 +506,67 @@ export default function AdminPanel({ initialClasses }: Props) {
                   {broadcastLoading ? "Sending…" : "Send →"}
                 </button>
                 <button className="btn-cancel" onClick={() => setShowBroadcast(false)}>Cancel</button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* ── Manage Locations ────────────────────────────────────────────── */}
+        <div style={{ background: "white", borderRadius: 12, padding: "18px 20px", marginBottom: 18, border: "1.5px solid #e8dfd4" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div style={{ fontSize: 11, color: "#aaa", textTransform: "uppercase", letterSpacing: "0.5px" }}>Custom Locations</div>
+            <button
+              className="btn-cancel"
+              style={{ fontSize: 12, padding: "5px 12px" }}
+              onClick={() => setShowLocations((v) => !v)}
+            >
+              {showLocations ? "▲ Hide" : "▼ Manage"}
+            </button>
+          </div>
+
+          {showLocations && (
+            <div style={{ marginTop: 14 }}>
+              {customLocations.length === 0 ? (
+                <div style={{ color: "#bbb", fontSize: 13 }}>No custom locations saved yet.</div>
+              ) : customLocations.map((loc) => (
+                <div key={loc} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 0", borderBottom: "1px solid #f0e8e0" }}>
+                  {editingLocation === loc ? (
+                    <>
+                      <input
+                        className="input-field"
+                        value={editingLocationValue}
+                        onChange={(e) => setEditingLocationValue(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === "Enter") renameLocation(loc, editingLocationValue); if (e.key === "Escape") setEditingLocation(null); }}
+                        style={{ flex: 1 }}
+                        autoFocus
+                      />
+                      <button className="btn-primary" style={{ fontSize: 12, padding: "5px 11px" }} onClick={() => renameLocation(loc, editingLocationValue)} disabled={locationLoading}>Save</button>
+                      <button className="btn-cancel" style={{ fontSize: 12, padding: "5px 11px" }} onClick={() => setEditingLocation(null)}>Cancel</button>
+                    </>
+                  ) : (
+                    <>
+                      <span style={{ flex: 1, fontSize: 14, color: "#3d2e1e" }}>📍 {loc}</span>
+                      <span style={{ fontSize: 12, color: "#bbb" }}>
+                        {classes.filter((c) => c.location === loc).length} class{classes.filter((c) => c.location === loc).length !== 1 ? "es" : ""}
+                      </span>
+                      <button
+                        className="btn-cancel"
+                        style={{ fontSize: 12, padding: "5px 11px" }}
+                        onClick={() => { setEditingLocation(loc); setEditingLocationValue(loc); }}
+                        disabled={locationLoading}
+                      >Rename</button>
+                      <button
+                        className="btn-cancel"
+                        style={{ fontSize: 12, padding: "5px 11px", color: "#c44", borderColor: "#c44" }}
+                        onClick={() => removeLocation(loc)}
+                        disabled={locationLoading}
+                      >Remove</button>
+                    </>
+                  )}
+                </div>
+              ))}
+              <div style={{ marginTop: 10, fontSize: 11, color: "#bbb" }}>
+                Preset locations (102 West 80th St, 21 West End Ave, Turtle Pond / Central Park, Zoom) are always available.
               </div>
             </div>
           )}
