@@ -27,41 +27,65 @@ type NewForm  = { day: string; time: string; end_time: string; class_name: strin
 
 const DEFAULT_NEW: NewForm = { day: "0", time: "10:00", end_time: "", class_name: "Ashtanga Open Practice", location: "", capacity: "10" };
 
-function LocationField({ value, onChange, extraLocations = [] }: { value: string; onChange: (v: string) => void; extraLocations?: string[] }) {
+function LocationField({ value, onChange, extraLocations = [], deletableLocations = [], onDeleteLocation }: {
+  value: string;
+  onChange: (v: string) => void;
+  extraLocations?: string[];
+  deletableLocations?: string[];
+  onDeleteLocation?: (loc: string) => void;
+}) {
   const allPresets = [...PRESET_LOCATIONS, ...extraLocations];
   const [showCustom, setShowCustom] = useState(!allPresets.includes(value) && value !== "");
   const selectVal = showCustom ? "Other" : value;
   return (
-    <div style={{ display: "flex", gap: 6 }}>
-      <select
-        className="input-field"
-        value={selectVal}
-        onChange={(e) => {
-          if (e.target.value === "Other") {
-            setShowCustom(true);
-            onChange("");
-          } else {
-            setShowCustom(false);
-            onChange(e.target.value);
-          }
-        }}
-        style={{ flex: 1 }}
-      >
-        <option value="">Select location…</option>
-        {PRESET_LOCATIONS.map((l) => <option key={l}>{l}</option>)}
-        {extraLocations.map((l) => <option key={l}>{l}</option>)}
-        <option value="Other">Other…</option>
-      </select>
-      {showCustom && (
-        <input
+    <div>
+      <div style={{ display: "flex", gap: 6 }}>
+        <select
           className="input-field"
-          type="text"
-          placeholder="Enter location"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          style={{ flex: 2 }}
-          autoFocus
-        />
+          value={selectVal}
+          onChange={(e) => {
+            if (e.target.value === "Other") {
+              setShowCustom(true);
+              onChange("");
+            } else {
+              setShowCustom(false);
+              onChange(e.target.value);
+            }
+          }}
+          style={{ flex: 1 }}
+        >
+          <option value="">Select location…</option>
+          {PRESET_LOCATIONS.map((l) => <option key={l}>{l}</option>)}
+          {extraLocations.map((l) => <option key={l}>{l}</option>)}
+          <option value="Other">Other…</option>
+        </select>
+        {showCustom && (
+          <input
+            className="input-field"
+            type="text"
+            placeholder="Enter location"
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            style={{ flex: 2 }}
+            autoFocus
+          />
+        )}
+      </div>
+      {onDeleteLocation && deletableLocations.length > 0 && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 6, alignItems: "center" }}>
+          <span style={{ fontSize: 11, color: "#bbb" }}>Saved:</span>
+          {deletableLocations.map((l) => (
+            <span key={l} style={{ display: "inline-flex", alignItems: "center", gap: 2, background: "#f0e8e0", borderRadius: 10, padding: "2px 6px 2px 8px", fontSize: 11, color: "#9a7d5e" }}>
+              {l}
+              <button
+                type="button"
+                onClick={(e) => { e.preventDefault(); onDeleteLocation(l); }}
+                style={{ background: "none", border: "none", cursor: "pointer", color: "#c44", fontSize: 14, lineHeight: 1, padding: 0, marginLeft: 2 }}
+                title={`Remove "${l}"`}
+              >×</button>
+            </span>
+          ))}
+        </div>
       )}
     </div>
   );
@@ -88,6 +112,13 @@ export default function AdminPanel({ initialClasses }: Props) {
   const [showAdd, setShowAdd] = useState(false);
   const [newForm, setNewForm] = useState<NewForm>(DEFAULT_NEW);
   const [addLoading, setAddLoading] = useState(false);
+
+  // Custom (non-preset) locations accumulated from saved classes
+  const [customLocations, setCustomLocations] = useState<string[]>(() =>
+    [...new Set(
+      initialClasses.map((c) => c.location).filter((l): l is string => !!l && !PRESET_LOCATIONS.includes(l))
+    )]
+  );
 
   // Broadcast / reminder
   const [showBroadcast, setShowBroadcast] = useState(false);
@@ -160,10 +191,18 @@ export default function AdminPanel({ initialClasses }: Props) {
     setEmailClassForm(null);
   }
 
-  // ── Extra locations from saved classes ──────────────────────────────────
-  const extraLocations = [...new Set(
-    classes.map((c) => c.location).filter((l): l is string => !!l && !PRESET_LOCATIONS.includes(l))
-  )];
+  // ── Location helpers ─────────────────────────────────────────────────────
+  function trackLocation(loc: string | null | undefined) {
+    if (!loc || PRESET_LOCATIONS.includes(loc)) return;
+    setCustomLocations((prev) => (prev.includes(loc) ? prev : [...prev, loc]));
+  }
+
+  function deleteCustomLocation(loc: string) {
+    setCustomLocations((prev) => prev.filter((l) => l !== loc));
+  }
+
+  // Only locations not currently assigned to any class can be deleted
+  const deletableLocations = customLocations.filter((l) => !classes.some((c) => c.location === l));
 
   // ── Sorted class list ────────────────────────────────────────────────────
   const sortedClasses = [...classes].sort((a, b) => {
@@ -206,6 +245,7 @@ export default function AdminPanel({ initialClasses }: Props) {
     });
     setActionLoading(null);
     if (!res.ok) { showToast("Failed to save changes."); return; }
+    trackLocation(editForm.location);
     setEditingId(null);
     setEditForm(null);
     showToast("Updated for this week. Students notified.");
@@ -272,6 +312,7 @@ export default function AdminPanel({ initialClasses }: Props) {
     if (!res.ok) { showToast("Failed to add class."); return; }
     const created: Class = await res.json();
     setClasses((prev) => [...prev, created]);
+    trackLocation(created.location);
     setNewForm(DEFAULT_NEW);
     setShowAdd(false);
     showToast("Class added!");
@@ -472,7 +513,13 @@ export default function AdminPanel({ initialClasses }: Props) {
               </div>
               <div style={{ marginBottom: 12 }}>
                 <label className="field-label">Location</label>
-                <LocationField value={newForm.location} onChange={(v) => setNewForm((f) => ({ ...f, location: v }))} extraLocations={extraLocations} />
+                <LocationField
+                  value={newForm.location}
+                  onChange={(v) => setNewForm((f) => ({ ...f, location: v }))}
+                  extraLocations={customLocations}
+                  deletableLocations={deletableLocations}
+                  onDeleteLocation={deleteCustomLocation}
+                />
               </div>
               <button className="btn-primary" onClick={addNewClass} disabled={addLoading}>
                 {addLoading ? "Adding…" : "+ Add Class"}
@@ -588,7 +635,13 @@ export default function AdminPanel({ initialClasses }: Props) {
                     </div>
                     <div style={{ marginBottom: 12 }}>
                       <label className="field-label">Location</label>
-                      <LocationField value={editForm.location} onChange={(v) => setEditForm((f) => f && ({ ...f, location: v }))} extraLocations={extraLocations} />
+                      <LocationField
+                        value={editForm.location}
+                        onChange={(v) => setEditForm((f) => f && ({ ...f, location: v }))}
+                        extraLocations={customLocations}
+                        deletableLocations={deletableLocations}
+                        onDeleteLocation={deleteCustomLocation}
+                      />
                     </div>
                     <div style={{ fontSize: 12, color: "#bbb", marginBottom: 10 }}>Students signed up will be notified of changes.</div>
                     <div style={{ display: "flex", gap: 8 }}>
