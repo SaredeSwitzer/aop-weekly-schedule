@@ -201,8 +201,7 @@ export default function AdminPanel({ initialClasses }: Props) {
     setCustomLocations((prev) => prev.filter((l) => l !== loc));
   }
 
-  // Only locations not currently assigned to any class can be deleted
-  const deletableLocations = customLocations.filter((l) => !classes.some((c) => c.location === l));
+  const deletableLocations = customLocations;
 
   // ── Sorted class list ────────────────────────────────────────────────────
   const sortedClasses = [...classes].sort((a, b) => {
