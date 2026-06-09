@@ -33,7 +33,6 @@ export default function SignupModal({ cls, signups, weekKey, onClose, onSignupSu
   const [name, setName]       = useState("");
   const [email, setEmail]     = useState("");
   const [cancelEmail, setCancelEmail] = useState("");
-  const [rememberMe, setRememberMe]   = useState(false);
   const [remembered, setRemembered]   = useState<RememberedUser | null>(null);
   const [loading, setLoading] = useState(false);
   const [toast, setToast]     = useState("");
@@ -89,10 +88,7 @@ export default function SignupModal({ cls, signups, weekKey, onClose, onSignupSu
     }
     if (!res.ok) { setToast("Something went wrong. Please try again."); return; }
 
-    // Save to localStorage if checkbox or already remembered
-    if (remembered || rememberMe) {
-      localStorage.setItem("yoga_user", JSON.stringify({ name: n, email: e }));
-    }
+    localStorage.setItem("yoga_user", JSON.stringify({ name: n, email: e }));
     setSuccess("signup");
     setTimeout(onSignupSuccess, 2200);
   }
@@ -192,11 +188,6 @@ export default function SignupModal({ cls, signups, weekKey, onClose, onSignupSu
                     value={email} onChange={(e) => setEmail(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && handleSignup()} />
                 </div>
-                <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "#9a7d5e", cursor: "pointer", marginBottom: 4 }}>
-                  <input type="checkbox" checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)}
-                    style={{ accentColor: "#c4956a", width: 15, height: 15 }} />
-                  Remember me on this device
-                </label>
               </>
             )}
             {toast && <div style={{ color: "#c44", fontSize: 13, marginBottom: 8 }}>{toast}</div>}
