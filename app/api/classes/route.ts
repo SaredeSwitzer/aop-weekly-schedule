@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabase, supabaseAdmin } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabase";
 import { auth } from "@clerk/nextjs/server";
 
 export async function GET() {
-  const { data, error } = await supabase
+  const db = supabaseAdmin();
+  const { data, error } = await db
     .from("classes")
     .select("*")
     .order("day")
