@@ -156,6 +156,19 @@ export default function AdminPanel({ initialClasses }: Props) {
     setLoading(false);
   }, []);
 
+  // Fetch fresh classes on mount so all existing locations appear in Manage card
+  useEffect(() => {
+    fetch("/api/classes")
+      .then((r) => r.json())
+      .then((data: Class[]) => {
+        setClasses(data);
+        setCustomLocations([...new Set(
+          data.map((c: Class) => c.location).filter((l): l is string => !!l && !PRESET_LOCATIONS.includes(l))
+        )]);
+      })
+      .catch(() => {});
+  }, []);
+
   // Realtime subscriptions
   useEffect(() => {
     fetchWeekData(weekKey);
@@ -524,11 +537,13 @@ export default function AdminPanel({ initialClasses }: Props) {
             </button>
           </div>
 
-          {showLocations && (
+          {showLocations && (() => {
+            const allLocations = [...new Set(classes.map((c) => c.location).filter((l): l is string => !!l))].sort();
+            return (
             <div style={{ marginTop: 14 }}>
-              {customLocations.length === 0 ? (
-                <div style={{ color: "#bbb", fontSize: 13 }}>No custom locations saved yet.</div>
-              ) : customLocations.map((loc) => (
+              {allLocations.length === 0 ? (
+                <div style={{ color: "#bbb", fontSize: 13 }}>No locations saved yet.</div>
+              ) : allLocations.map((loc) => (
                 <div key={loc} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 0", borderBottom: "1px solid #f0e8e0" }}>
                   {editingLocation === loc ? (
                     <>
@@ -566,10 +581,11 @@ export default function AdminPanel({ initialClasses }: Props) {
                 </div>
               ))}
               <div style={{ marginTop: 10, fontSize: 11, color: "#bbb" }}>
-                Preset locations (102 West 80th St, 21 West End Ave, Turtle Pond / Central Park, Zoom) are always available.
+                Rename or remove updates all classes using that location. Removed locations are cleared from those classes.
               </div>
             </div>
-          )}
+            );
+          })()}
         </div>
 
         {/* ── Class list ──────────────────────────────────────────────────── */}
