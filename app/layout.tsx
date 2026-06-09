@@ -26,6 +26,17 @@ export const metadata: Metadata = {
   icons: {
     apple: "/icon-192.png",
   },
+  openGraph: {
+    title: "AOP Shala NYC — Weekly Schedule",
+    description: "Yoga class schedule and signups for AOP Shala NYC",
+    images: [{ url: "/icon-512.png", width: 512, height: 512, alt: "AOP Shala NYC" }],
+  },
+  twitter: {
+    card: "summary",
+    title: "AOP Shala NYC — Weekly Schedule",
+    description: "Yoga class schedule and signups for AOP Shala NYC",
+    images: ["/icon-512.png"],
+  },
 };
 
 export default function RootLayout({
