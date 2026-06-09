@@ -538,12 +538,28 @@ export default function AdminPanel({ initialClasses }: Props) {
           </div>
 
           {showLocations && (() => {
-            const allLocations = [...new Set(classes.map((c) => c.location).filter((l): l is string => !!l))].sort();
+            const customInUse = [...new Set([
+              ...classes.map((c) => c.location).filter((l): l is string => !!l && !PRESET_LOCATIONS.includes(l)),
+              ...customLocations,
+            ])].sort();
             return (
             <div style={{ marginTop: 14 }}>
-              {allLocations.length === 0 ? (
-                <div style={{ color: "#bbb", fontSize: 13 }}>No locations saved yet.</div>
-              ) : allLocations.map((loc) => (
+              {/* Built-in preset locations */}
+              <div style={{ fontSize: 11, color: "#bbb", textTransform: "uppercase", letterSpacing: "0.4px", marginBottom: 6 }}>Built-in</div>
+              {PRESET_LOCATIONS.map((loc) => (
+                <div key={loc} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 0", borderBottom: "1px solid #f0e8e0" }}>
+                  <span style={{ flex: 1, fontSize: 14, color: "#9a7d5e" }}>📍 {loc}</span>
+                  <span style={{ fontSize: 12, color: "#bbb" }}>
+                    {classes.filter((c) => c.location === loc).length} class{classes.filter((c) => c.location === loc).length !== 1 ? "es" : ""}
+                  </span>
+                  <span style={{ fontSize: 11, color: "#ccc", fontStyle: "italic" }}>built-in</span>
+                </div>
+              ))}
+              {/* Custom locations */}
+              <div style={{ fontSize: 11, color: "#bbb", textTransform: "uppercase", letterSpacing: "0.4px", margin: "14px 0 6px" }}>Custom</div>
+              {customInUse.length === 0 ? (
+                <div style={{ color: "#bbb", fontSize: 13 }}>No custom locations yet.</div>
+              ) : customInUse.map((loc) => (
                 <div key={loc} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 0", borderBottom: "1px solid #f0e8e0" }}>
                   {editingLocation === loc ? (
                     <>
