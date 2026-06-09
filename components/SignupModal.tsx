@@ -37,6 +37,7 @@ export default function SignupModal({ cls, signups, weekKey, onClose, onSignupSu
   const [remembered, setRemembered]   = useState<RememberedUser | null>(null);
   const [loading, setLoading] = useState(false);
   const [toast, setToast]     = useState("");
+  const [success, setSuccess] = useState<"signup" | "cancel" | null>(null);
 
   const nameRef   = useRef<HTMLInputElement>(null);
   const cancelRef = useRef<HTMLInputElement>(null);
@@ -92,7 +93,8 @@ export default function SignupModal({ cls, signups, weekKey, onClose, onSignupSu
     if (remembered || rememberMe) {
       localStorage.setItem("yoga_user", JSON.stringify({ name: n, email: e }));
     }
-    onSignupSuccess();
+    setSuccess("signup");
+    setTimeout(onSignupSuccess, 2200);
   }
 
   async function handleCancel() {
@@ -109,14 +111,30 @@ export default function SignupModal({ cls, signups, weekKey, onClose, onSignupSu
     if (res.status === 404) { setToast("We couldn't find that email in this class."); return; }
     if (!res.ok) { setToast("Something went wrong. Please try again."); return; }
 
-    onCancelSuccess();
+    setSuccess("cancel");
+    setTimeout(onCancelSuccess, 2000);
   }
 
   return (
     <div className="overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
+        {/* Success screen */}
+        {success && (
+          <div style={{ textAlign: "center", padding: "32px 16px" }}>
+            <div style={{ fontSize: 48, marginBottom: 12 }}>{success === "signup" ? "✅" : "👋"}</div>
+            <div style={{ fontSize: 20, fontWeight: 700, color: "#3d2e1e", marginBottom: 8 }}>
+              {success === "signup" ? "You're signed up!" : "Signup cancelled"}
+            </div>
+            <div style={{ fontSize: 14, color: "#9a7d5e" }}>
+              {success === "signup"
+                ? `See you ${DAYS[cls.day]} · ${timeStr}`
+                : "You've been removed from this class."}
+            </div>
+          </div>
+        )}
         {/* Header */}
-        <h3>{tab === "signup" ? "Reserve Your Spot" : "Cancel My Signup"}</h3>
+        {!success && <h3>{tab === "signup" ? "Reserve Your Spot" : "Cancel My Signup"}</h3>}
+        {!success && <>
         <div className="modal-location" style={{ fontSize: 13, color: "#9a7d5e", marginBottom: 2 }}>
           {cls.class_name} · {timeStr} · {dayStr}
         </div>
@@ -217,6 +235,7 @@ export default function SignupModal({ cls, signups, weekKey, onClose, onSignupSu
             </div>
           </div>
         )}
+        </>}
       </div>
     </div>
   );
