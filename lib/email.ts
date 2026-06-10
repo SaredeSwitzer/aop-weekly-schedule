@@ -1,31 +1,26 @@
-const BREVO_URL = "https://api.brevo.com/v3/smtp/email";
+import { Resend } from "resend";
+
+const FROM = "AOP Shala NYC <onboarding@resend.dev>";
+
+function getResend() {
+  return new Resend(process.env.RESEND_API_KEY!);
+}
 
 export async function brevoSend(
   to: string,
-  toName: string,
+  _toName: string,
   subject: string,
   htmlContent: string,
 ): Promise<{ ok: boolean; error?: string }> {
   try {
-    const res = await fetch(BREVO_URL, {
-      method: "POST",
-      headers: {
-        accept: "application/json",
-        "api-key": process.env.BREVO_API_KEY!,
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        sender:  { name: "AOP Shala NYC", email: process.env.SENDER_EMAIL },
-        replyTo: { email: process.env.ADMIN_EMAIL_1 },
-        to:      [{ email: to, name: toName }],
-        subject,
-        htmlContent,
-      }),
+    const { error } = await getResend().emails.send({
+      from: FROM,
+      replyTo: process.env.ADMIN_EMAIL_1,
+      to: [to],
+      subject,
+      html: htmlContent,
     });
-    if (!res.ok) {
-      const err = await res.json();
-      return { ok: false, error: JSON.stringify(err) };
-    }
+    if (error) return { ok: false, error: error.message };
     return { ok: true };
   } catch (e) {
     return { ok: false, error: (e as Error).message };
