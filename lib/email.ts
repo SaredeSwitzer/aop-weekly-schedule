@@ -1,9 +1,13 @@
-import { Resend } from "resend";
+import nodemailer from "nodemailer";
 
-const FROM = "AOP Shala NYC <onboarding@resend.dev>";
-
-function getResend() {
-  return new Resend(process.env.RESEND_API_KEY!);
+function getTransport() {
+  return nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      user: process.env.SENDER_EMAIL,
+      pass: process.env.GMAIL_APP_PASSWORD,
+    },
+  });
 }
 
 export async function brevoSend(
@@ -13,14 +17,13 @@ export async function brevoSend(
   htmlContent: string,
 ): Promise<{ ok: boolean; error?: string }> {
   try {
-    const { error } = await getResend().emails.send({
-      from: FROM,
+    await getTransport().sendMail({
+      from: `AOP Shala NYC <${process.env.SENDER_EMAIL}>`,
       replyTo: process.env.ADMIN_EMAIL_1,
-      to: [to],
+      to,
       subject,
       html: htmlContent,
     });
-    if (error) return { ok: false, error: error.message };
     return { ok: true };
   } catch (e) {
     return { ok: false, error: (e as Error).message };
