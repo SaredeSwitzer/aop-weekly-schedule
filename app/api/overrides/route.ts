@@ -1,3 +1,4 @@
+import { after } from "next/server";
 import { NextRequest, NextResponse } from "next/server";
 import { supabase, supabaseAdmin } from "@/lib/supabase";
 import { auth } from "@clerk/nextjs/server";
@@ -69,16 +70,16 @@ export async function PUT(req: NextRequest) {
     const classDate = fmtDateLong(slotDate);
 
     if (cancelled) {
-      notifyStudentsClassCancelled({
+      after(notifyStudentsClassCancelled({
         signups: signupRows,
         className: effectiveName,
         classTime: effectiveTime,
         classDate,
         location: effectiveLocation,
         capacity: effectiveCapacity,
-      }).catch(console.error);
+      }).catch(console.error));
     } else {
-      notifyStudentsClassUpdate({
+      after(notifyStudentsClassUpdate({
         signups: signupRows,
         className: effectiveName,
         classTime: effectiveTime,
@@ -86,7 +87,7 @@ export async function PUT(req: NextRequest) {
         location: effectiveLocation,
         spotsLeft: effectiveCapacity - signupRows.length,
         capacity: effectiveCapacity,
-      }).catch(console.error);
+      }).catch(console.error));
     }
   }
 

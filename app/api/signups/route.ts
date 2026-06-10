@@ -1,3 +1,4 @@
+import { after } from "next/server";
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { supabaseAdmin } from "@/lib/supabase";
@@ -49,9 +50,9 @@ export async function POST(req: NextRequest) {
     .select().single();
   if (insertErr) return NextResponse.json({ error: insertErr.message }, { status: 500 });
 
-  // Send signup emails in the background (don't block response)
+  // Send signup emails after response is sent (keeps function alive on Vercel)
   const slotDate = getSlotDate(cls.day, week_key);
-  sendSignupEmails({
+  after(sendSignupEmails({
     className: ov?.class_name ?? cls.class_name,
     classTime: fmtTimeRange(ov?.time ?? cls.time, ov?.end_time ?? cls.end_time),
     classDate: fmtDateLong(slotDate),
@@ -60,7 +61,7 @@ export async function POST(req: NextRequest) {
     studentEmail: email.trim().toLowerCase(),
     taken: taken + 1,
     capacity,
-  }).catch(console.error);
+  }).catch(console.error));
 
   return NextResponse.json(signup, { status: 201 });
 }
@@ -109,9 +110,9 @@ export async function DELETE(req: NextRequest) {
   const { error: delErr } = await db.from("signups").delete().eq("id", signup.id);
   if (delErr) return NextResponse.json({ error: delErr.message }, { status: 500 });
 
-  // Send cancel emails in the background (don't block response)
+  // Send cancel emails after response is sent (keeps function alive on Vercel)
   const slotDate = getSlotDate(cls.day, week_key);
-  sendCancelEmails({
+  after(sendCancelEmails({
     className: ov?.class_name ?? cls.class_name,
     classTime: fmtTimeRange(ov?.time ?? cls.time, ov?.end_time ?? cls.end_time),
     classDate: fmtDateLong(slotDate),
@@ -120,7 +121,7 @@ export async function DELETE(req: NextRequest) {
     studentEmail: signup.email,
     takenAfter,
     capacity,
-  }).catch(console.error);
+  }).catch(console.error));
 
   return NextResponse.json({ success: true });
 }
