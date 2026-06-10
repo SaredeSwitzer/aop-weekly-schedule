@@ -52,13 +52,14 @@ export async function sendSignupEmails(params: {
   const subject = `Signup Confirmation — ${className} · ${classDate}`;
   const adminSubject = `New Signup — ${studentName} · ${className} (${classDate})`;
 
-  await Promise.all([
+  const [studentResult, admin1Result, admin2Result] = await Promise.all([
     brevoSend(studentEmail, studentName, subject, studentHtml),
     brevoSend(process.env.ADMIN_EMAIL_1!, "Admin", adminSubject, adminHtml),
     process.env.ADMIN_EMAIL_2
       ? brevoSend(process.env.ADMIN_EMAIL_2, "Admin", adminSubject, adminHtml)
-      : Promise.resolve(),
+      : Promise.resolve({ ok: true }),
   ]);
+  console.log("[signup email] student:", studentResult, "admin1:", admin1Result, "admin2:", admin2Result);
 }
 
 export async function notifyStudentsClassUpdate(params: {
