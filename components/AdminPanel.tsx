@@ -79,6 +79,7 @@ export default function AdminPanel({ initialClasses }: Props) {
   const [overrides, setOverrides] = useState<OverrideMap>({});
   const [loading, setLoading]     = useState(true);
   const [toast, setToast]         = useState("");
+  const [toastOk, setToastOk]     = useState(true);
 
   // Per-class UI state
   const [editingId, setEditingId]   = useState<string | null>(null);
@@ -125,9 +126,10 @@ export default function AdminPanel({ initialClasses }: Props) {
   const [broadcastLoading, setBroadcastLoading] = useState(false);
   const [reminderLoading, setReminderLoading] = useState(false);
 
-  function showToast(msg: string) {
+  function showToast(msg: string, ok = true) {
     setToast(msg);
-    setTimeout(() => setToast(""), 4000);
+    setToastOk(ok);
+    setTimeout(() => setToast(""), ok ? 5000 : 6000);
   }
 
   const fetchWeekData = useCallback(async (key: string) => {
@@ -297,7 +299,7 @@ export default function AdminPanel({ initialClasses }: Props) {
       }),
     });
     setActionLoading(null);
-    if (!res.ok) { showToast("Failed to save changes."); return; }
+    if (!res.ok) { showToast("Failed to save changes.", false); return; }
     trackLocation(editForm.location);
     setEditingId(null);
     setEditForm(null);
@@ -323,7 +325,7 @@ export default function AdminPanel({ initialClasses }: Props) {
       }),
     });
     setActionLoading(null);
-    if (!res.ok) { showToast("Failed to cancel class."); return; }
+    if (!res.ok) { showToast("Failed to cancel class.", false); return; }
     showToast("Class cancelled. Students notified.");
   }
 
@@ -331,7 +333,7 @@ export default function AdminPanel({ initialClasses }: Props) {
     setActionLoading(cls.id);
     const res = await fetch(`/api/overrides?week_key=${encodeURIComponent(weekKey)}&class_id=${encodeURIComponent(cls.id)}`, { method: "DELETE" });
     setActionLoading(null);
-    if (!res.ok) { showToast("Failed to reset override."); return; }
+    if (!res.ok) { showToast("Failed to reset override.", false); return; }
     showToast("Reset to regular schedule.");
   }
 
@@ -340,7 +342,7 @@ export default function AdminPanel({ initialClasses }: Props) {
     setActionLoading(cls.id);
     const res = await fetch(`/api/classes?id=${encodeURIComponent(cls.id)}`, { method: "DELETE" });
     setActionLoading(null);
-    if (!res.ok) { showToast("Failed to delete class."); return; }
+    if (!res.ok) { showToast("Failed to delete class.", false); return; }
     setClasses((prev) => prev.filter((c) => c.id !== cls.id));
     showToast("Class permanently removed.");
   }
@@ -362,7 +364,7 @@ export default function AdminPanel({ initialClasses }: Props) {
       }),
     });
     setAddLoading(false);
-    if (!res.ok) { showToast("Failed to add class."); return; }
+    if (!res.ok) { showToast("Failed to add class.", false); return; }
     const created: Class = await res.json();
     setClasses((prev) => [...prev, created]);
     trackLocation(created.location);
@@ -406,7 +408,13 @@ export default function AdminPanel({ initialClasses }: Props) {
     }
     setActionLoading(null);
     setEmailClassForm(null);
-    showToast(`Sent ${sent}${failed ? `, ${failed} failed` : ""}.`);
+    const allFailed = sent === 0 && failed > 0;
+    showToast(
+      allFailed
+        ? `Failed to send ${failed} email${failed !== 1 ? "s" : ""}.`
+        : `✓ Sent to ${sent} student${sent !== 1 ? "s" : ""}${failed ? ` · ${failed} failed` : ""}.`,
+      !allFailed,
+    );
   }
 
   // ── Broadcast to all students ever ───────────────────────────────────────
@@ -423,26 +431,31 @@ export default function AdminPanel({ initialClasses }: Props) {
       body: JSON.stringify({ type: "broadcast", subject: broadcastForm.subject, message: broadcastForm.body }),
     });
     setBroadcastLoading(false);
-    if (!res.ok) { showToast("Broadcast failed."); return; }
+    if (!res.ok) { showToast("Broadcast failed.", false); return; }
     const { sent, failed } = await res.json();
     setBroadcastForm({ subject: "", body: "" });
     setShowBroadcast(false);
-    showToast(`Sent ${sent}${failed ? `, ${failed} failed` : ""}.`);
+    showToast(`✓ Broadcast sent to ${sent} student${sent !== 1 ? "s" : ""}${failed ? ` · ${failed} failed` : ""}.`, sent > 0);
   }
 
   // ── Weekly reminder ──────────────────────────────────────────────────────
   async function sendReminder() {
     if (!confirm("Send weekly schedule reminder to ALL students ever?")) return;
     setReminderLoading(true);
-    const res = await fetch("/api/admin/broadcast", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ type: "reminder", week_key: weekKey }),
-    });
-    setReminderLoading(false);
-    if (!res.ok) { showToast("Reminder failed."); return; }
-    const { sent, failed } = await res.json();
-    showToast(`Reminder sent to ${sent}${failed ? `, ${failed} failed` : ""}.`);
+    try {
+      const res = await fetch("/api/admin/broadcast", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ type: "reminder", week_key: weekKey }),
+      });
+      if (!res.ok) { showToast("Reminder failed.", false); return; }
+      const { sent, failed } = await res.json();
+      showToast(`✓ Reminder sent to ${sent} student${sent !== 1 ? "s" : ""}${failed ? ` · ${failed} failed` : ""}.`, sent > 0);
+    } catch {
+      showToast("Reminder failed — network error.", false);
+    } finally {
+      setReminderLoading(false);
+    }
   }
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -844,8 +857,10 @@ export default function AdminPanel({ initialClasses }: Props) {
       {toast && (
         <div style={{
           position: "fixed", bottom: 24, left: "50%", transform: "translateX(-50%)",
-          background: "#3d2e1e", color: "white", padding: "10px 20px", borderRadius: 10,
-          fontSize: 14, zIndex: 1000, boxShadow: "0 4px 16px rgba(0,0,0,0.2)",
+          background: toastOk ? "#2d6a3f" : "#9b2c2c",
+          color: "white", padding: "11px 22px", borderRadius: 10,
+          fontSize: 14, zIndex: 1000, boxShadow: "0 4px 16px rgba(0,0,0,0.25)",
+          fontWeight: 500, maxWidth: "90vw", textAlign: "center",
         }}>
           {toast}
         </div>

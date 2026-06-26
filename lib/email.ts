@@ -72,7 +72,7 @@ export async function notifyStudentsClassUpdate(params: {
   const { studentEmailHtml } = await import("./emailTemplates");
   const { className, classTime, classDate, location, spotsLeft, capacity } = params;
   for (const s of params.signups) {
-    brevoSend(
+    await brevoSend(
       s.email, s.name,
       `Class Update — ${className} · ${classDate}`,
       studentEmailHtml({ toName: s.name, action: "Class Update", subtext: "Your class details have been updated.", className, classTime, classDate, location, spotsLeft, capacity }),
@@ -91,7 +91,7 @@ export async function notifyStudentsClassCancelled(params: {
   const { studentEmailHtml } = await import("./emailTemplates");
   const { className, classTime, classDate, location, capacity } = params;
   for (const s of params.signups) {
-    brevoSend(
+    await brevoSend(
       s.email, s.name,
       `Class Cancelled — ${className} · ${classDate}`,
       studentEmailHtml({ toName: s.name, action: "Class Cancelled", subtext: "This class has been cancelled for this week.", className, classTime, classDate, location, spotsLeft: 0, capacity }),

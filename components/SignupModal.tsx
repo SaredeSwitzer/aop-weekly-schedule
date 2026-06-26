@@ -8,6 +8,10 @@ type Tab = "signup" | "cancel";
 
 type RememberedUser = { name: string; email: string };
 
+function isValidEmail(e: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e);
+}
+
 function getRememberedUser(): RememberedUser | null {
   try {
     return JSON.parse(localStorage.getItem("yoga_user") || "null");
@@ -72,6 +76,7 @@ export default function SignupModal({ cls, signups, weekKey, onClose, onSignupSu
     const n = remembered?.name ?? name.trim();
     const e = remembered?.email ?? email.trim();
     if (!n || !e) { setToast("Please fill in your name and email."); return; }
+    if (!isValidEmail(e)) { setToast("Please enter a valid email address."); return; }
 
     setLoading(true);
     const res = await fetch("/api/signups", {
@@ -96,6 +101,7 @@ export default function SignupModal({ cls, signups, weekKey, onClose, onSignupSu
   async function handleCancel() {
     const e = remembered?.email ?? cancelEmail.trim();
     if (!e) { setToast("Please enter your email."); return; }
+    if (!isValidEmail(e)) { setToast("Please enter a valid email address."); return; }
 
     setLoading(true);
     const res = await fetch(
