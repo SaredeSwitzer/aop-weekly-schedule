@@ -22,7 +22,8 @@ export async function POST(req: NextRequest) {
     const { data: signups } = await db
       .from("signups")
       .select("name, email, signed_up_at")
-      .order("signed_up_at", { ascending: false });
+      .order("signed_up_at", { ascending: false })
+      .limit(5000);
 
     const seen = new Map<string, string>();
     for (const s of signups ?? []) {
@@ -45,7 +46,8 @@ export async function POST(req: NextRequest) {
     const { data: signups } = await db
       .from("signups")
       .select("name, email, signed_up_at")
-      .order("signed_up_at", { ascending: false });
+      .order("signed_up_at", { ascending: false })
+      .limit(5000);
 
     const seen = new Map<string, string>();
     for (const s of signups ?? []) {
