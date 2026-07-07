@@ -41,6 +41,7 @@ export default function SignupModal({ cls, signups, weekKey, onClose, onSignupSu
   const [loading, setLoading] = useState(false);
   const [toast, setToast]     = useState("");
   const [success, setSuccess] = useState<"signup" | "cancel" | null>(null);
+  const [emailFix, setEmailFix] = useState("");
 
   const nameRef   = useRef<HTMLInputElement>(null);
   const cancelRef = useRef<HTMLInputElement>(null);
@@ -49,6 +50,8 @@ export default function SignupModal({ cls, signups, weekKey, onClose, onSignupSu
   const dateStr  = fmtDate(slotDate);
   const dayStr   = DAYS[cls.day];
   const timeStr  = fmtTimeRange(cls.time, cls.end_time);
+
+  const remEmailInvalid = remembered !== null && !isValidEmail(remembered.email);
 
   // Load remembered user on mount
   useEffect(() => {
@@ -74,7 +77,7 @@ export default function SignupModal({ cls, signups, weekKey, onClose, onSignupSu
 
   async function handleSignup() {
     const n = remembered?.name ?? name.trim();
-    const e = remembered?.email ?? email.trim();
+    const e = remEmailInvalid ? emailFix.trim() : (remembered?.email ?? email.trim());
     if (!n || !e) { setToast("Please fill in your name and email."); return; }
     if (!isValidEmail(e)) { setToast("Please enter a valid email address."); return; }
 
@@ -99,7 +102,7 @@ export default function SignupModal({ cls, signups, weekKey, onClose, onSignupSu
   }
 
   async function handleCancel() {
-    const e = remembered?.email ?? cancelEmail.trim();
+    const e = remEmailInvalid ? emailFix.trim() : (remembered?.email ?? cancelEmail.trim());
     if (!e) { setToast("Please enter your email."); return; }
     if (!isValidEmail(e)) { setToast("Please enter a valid email address."); return; }
 
@@ -176,10 +179,23 @@ export default function SignupModal({ cls, signups, weekKey, onClose, onSignupSu
         {tab === "signup" && (
           <div>
             {remembered ? (
-              <div style={{ background: "#f5ece0", borderRadius: 9, padding: "10px 14px", marginBottom: 14, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-                <span style={{ fontSize: 13, color: "#5a3e28" }}>👋 Signing up as <strong>{remembered.name}</strong></span>
-                <button onClick={forgetMe} style={{ background: "none", border: "none", fontSize: 11, color: "#c4956a", cursor: "pointer", textDecoration: "underline" }}>Not you?</button>
-              </div>
+              <>
+                <div style={{ background: "#f5ece0", borderRadius: 9, padding: "10px 14px", marginBottom: remEmailInvalid ? 8 : 14, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                  <span style={{ fontSize: 13, color: "#5a3e28" }}>👋 Signing up as <strong>{remembered.name}</strong></span>
+                  <button onClick={forgetMe} style={{ background: "none", border: "none", fontSize: 11, color: "#c4956a", cursor: "pointer", textDecoration: "underline" }}>Not you?</button>
+                </div>
+                {remEmailInvalid && (
+                  <div style={{ marginBottom: 14 }}>
+                    <div style={{ background: "#fff3cd", border: "1px solid #f0c040", borderRadius: 8, padding: "8px 12px", fontSize: 13, color: "#7a5a00", marginBottom: 8 }}>
+                      ⚠️ The email we have on file (<strong>{remembered.email}</strong>) doesn't look valid. Please enter a correct email to continue.
+                    </div>
+                    <label className="field-label">Correct Email Address</label>
+                    <input className="input-field" type="email" placeholder="your@email.com"
+                      value={emailFix} onChange={(e) => setEmailFix(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && handleSignup()} autoFocus />
+                  </div>
+                )}
+              </>
             ) : (
               <>
                 <div className="field-group">
@@ -210,10 +226,23 @@ export default function SignupModal({ cls, signups, weekKey, onClose, onSignupSu
         {tab === "cancel" && (
           <div>
             {remembered ? (
-              <div style={{ background: "#f5ece0", borderRadius: 9, padding: "10px 14px", marginBottom: 14, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-                <span style={{ fontSize: 13, color: "#5a3e28" }}>Cancelling as <strong>{remembered.name}</strong></span>
-                <button onClick={forgetMe} style={{ background: "none", border: "none", fontSize: 11, color: "#c4956a", cursor: "pointer", textDecoration: "underline" }}>Not you?</button>
-              </div>
+              <>
+                <div style={{ background: "#f5ece0", borderRadius: 9, padding: "10px 14px", marginBottom: remEmailInvalid ? 8 : 14, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                  <span style={{ fontSize: 13, color: "#5a3e28" }}>Cancelling as <strong>{remembered.name}</strong></span>
+                  <button onClick={forgetMe} style={{ background: "none", border: "none", fontSize: 11, color: "#c4956a", cursor: "pointer", textDecoration: "underline" }}>Not you?</button>
+                </div>
+                {remEmailInvalid && (
+                  <div style={{ marginBottom: 14 }}>
+                    <div style={{ background: "#fff3cd", border: "1px solid #f0c040", borderRadius: 8, padding: "8px 12px", fontSize: 13, color: "#7a5a00", marginBottom: 8 }}>
+                      ⚠️ The email we have on file (<strong>{remembered.email}</strong>) doesn't look valid. Please enter a correct email to continue.
+                    </div>
+                    <label className="field-label">Correct Email Address</label>
+                    <input className="input-field" type="email" placeholder="your@email.com"
+                      value={emailFix} onChange={(e) => setEmailFix(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && handleCancel()} autoFocus />
+                  </div>
+                )}
+              </>
             ) : (
               <div className="field-group">
                 <div style={{ fontSize: 13, color: "#888", marginBottom: 14 }}>Enter your email address to remove yourself from this class.</div>

@@ -14,10 +14,17 @@ export async function GET(req: NextRequest) {
   return NextResponse.json(data);
 }
 
+function isValidEmail(e: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e);
+}
+
 export async function POST(req: NextRequest) {
   const { week_key, class_id, name, email } = await req.json();
   if (!week_key || !class_id || !name?.trim() || !email?.trim()) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+  }
+  if (!isValidEmail(email.trim())) {
+    return NextResponse.json({ error: "invalid_email" }, { status: 400 });
   }
 
   const db = supabaseAdmin();
@@ -50,6 +57,12 @@ export async function POST(req: NextRequest) {
     .select().single();
   if (insertErr) return NextResponse.json({ error: insertErr.message }, { status: 500 });
 
+  // Deduct one class from the student's package if they have one
+  const { data: pkg } = await db.from("packages").select("id, used_classes").eq("student_email", email.trim().toLowerCase()).maybeSingle();
+  if (pkg) {
+    await db.from("packages").update({ used_classes: pkg.used_classes + 1 }).eq("id", pkg.id);
+  }
+
   // Send signup emails after response is sent (keeps function alive on Vercel)
   const slotDate = getSlotDate(cls.day, week_key);
   after(sendSignupEmails({
@@ -75,8 +88,21 @@ export async function DELETE(req: NextRequest) {
     const { userId } = await (await import("@clerk/nextjs/server")).auth();
     if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     const db = supabaseAdmin();
+
+    // Fetch before delete so we can restore the package credit
+    const { data: existing } = await db.from("signups").select("email").eq("id", signupId).maybeSingle();
+
     const { error } = await db.from("signups").delete().eq("id", signupId);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+    // Restore one credit if student has a package
+    if (existing?.email) {
+      const { data: pkg } = await db.from("packages").select("id, used_classes").eq("student_email", existing.email.toLowerCase()).maybeSingle();
+      if (pkg && pkg.used_classes > 0) {
+        await db.from("packages").update({ used_classes: pkg.used_classes - 1 }).eq("id", pkg.id);
+      }
+    }
+
     return NextResponse.json({ success: true });
   }
 
@@ -109,6 +135,12 @@ export async function DELETE(req: NextRequest) {
   // Delete signup first so response is fast
   const { error: delErr } = await db.from("signups").delete().eq("id", signup.id);
   if (delErr) return NextResponse.json({ error: delErr.message }, { status: 500 });
+
+  // Restore one credit to the student's package if they have one
+  const { data: pkg } = await db.from("packages").select("id, used_classes").eq("student_email", email.toLowerCase()).maybeSingle();
+  if (pkg && pkg.used_classes > 0) {
+    await db.from("packages").update({ used_classes: pkg.used_classes - 1 }).eq("id", pkg.id);
+  }
 
   // Send cancel emails after response is sent (keeps function alive on Vercel)
   const slotDate = getSlotDate(cls.day, week_key);

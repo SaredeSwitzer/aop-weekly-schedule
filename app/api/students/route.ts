@@ -14,13 +14,18 @@ export async function GET() {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  // Deduplicate by email, keeping the most recent name
-  const seen = new Map<string, string>();
+  // Deduplicate by email, keeping most recent name + counting signups
+  const seen = new Map<string, { name: string; count: number }>();
   for (const row of data ?? []) {
     const key = row.email.toLowerCase();
-    if (!seen.has(key)) seen.set(key, row.name);
+    if (!seen.has(key)) seen.set(key, { name: row.name, count: 1 });
+    else seen.get(key)!.count++;
   }
 
-  const students = Array.from(seen.entries()).map(([email, name]) => ({ email, name }));
+  const students = Array.from(seen.entries()).map(([email, { name, count }]) => ({
+    email,
+    name,
+    signup_count: count,
+  }));
   return NextResponse.json(students);
 }

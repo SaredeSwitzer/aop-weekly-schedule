@@ -41,3 +41,19 @@ export type SignupMap = Record<string, Signup[]>;
 
 // Overrides keyed by class_id
 export type OverrideMap = Record<string, Override>;
+
+export type Package = {
+  id: string;
+  student_email: string;
+  student_name: string;
+  total_classes: number;
+  used_classes: number;
+  created_at: string;
+  notes: string | null;
+};
+
+export type Student = {
+  email: string;
+  name: string;
+  signup_count: number;
+};

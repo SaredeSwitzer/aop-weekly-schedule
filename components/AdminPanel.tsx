@@ -9,6 +9,7 @@ import {
 } from "@/lib/dates";
 import type { Class, Signup, Override, SignupMap, OverrideMap } from "@/lib/types";
 import WeekNav from "./WeekNav";
+import StudentsSection from "./StudentsSection";
 
 const DEFAULT_LOCATIONS = ["102 West 80th St", "21 West End Ave", "Turtle Pond / Central Park", "Zoom"];
 const LS_KEY = "aop_locations";
@@ -484,6 +485,9 @@ export default function AdminPanel({ initialClasses }: Props) {
       </header>
 
       <div style={{ maxWidth: 800, margin: "0 auto", padding: "24px 16px" }}>
+
+        {/* ── Students & Packages ─────────────────────────────────────────── */}
+        <StudentsSection showToast={showToast} />
 
         {/* ── Email tools ─────────────────────────────────────────────────── */}
         <div style={{ background: "white", borderRadius: 12, padding: "18px 20px", marginBottom: 18, border: "1.5px solid #e8dfd4" }}>
