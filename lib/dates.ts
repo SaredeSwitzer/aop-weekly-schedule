@@ -14,6 +14,16 @@ export function getWeekKey(date: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
 }
 
+export function getInitialWeekKey(date: Date): string {
+  // On Saturdays, show next week's schedule so students signing up for
+  // Sunday (and beyond) aren't stuck looking at the week that's ending.
+  const d = new Date(date);
+  if (d.getDay() === 6) {
+    d.setDate(d.getDate() + 1);
+  }
+  return getWeekKey(d);
+}
+
 export function getWeekDates(key: string): Date[] {
   const [y, mo, d] = key.split("-").map(Number);
   const sun = new Date(y, mo - 1, d);

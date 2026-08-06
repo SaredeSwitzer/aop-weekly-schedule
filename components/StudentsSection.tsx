@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { Student, Package } from "@/lib/types";
 
 type PackageFormState = {
@@ -44,6 +44,14 @@ export default function StudentsSection({ showToast }: Props) {
   const [editingEmail, setEditingEmail] = useState<string | null>(null);
   const [form, setForm] = useState<PackageFormState>({ total_classes: "", used_classes: "0", notes: "" });
   const [saving, setSaving] = useState(false);
+
+  // Load packages eagerly so the badge shows without opening the section
+  useEffect(() => {
+    fetch("/api/packages")
+      .then((r) => r.json())
+      .then((p: Package[]) => setPackages(p))
+      .catch(() => {});
+  }, []);
 
   async function load() {
     if (loaded) return;

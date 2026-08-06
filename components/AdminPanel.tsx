@@ -202,6 +202,19 @@ export default function AdminPanel({ initialClasses }: Props) {
     };
   }, [weekKey, fetchWeekData]);
 
+  // Alert when any package gets exhausted in real time
+  useEffect(() => {
+    const pkgCh = supabase.channel("admin-packages")
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "packages" }, (payload) => {
+        const pkg = payload.new as { student_name: string; used_classes: number; total_classes: number };
+        if (pkg.used_classes >= pkg.total_classes) {
+          showToast(`⚠️ ${pkg.student_name} used their last class — package empty`, false);
+        }
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(pkgCh); };
+  }, []);
+
   function handleWeekChange(key: string) {
     setWeekKey(key);
     setEditingId(null);

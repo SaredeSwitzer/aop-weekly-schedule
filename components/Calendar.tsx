@@ -4,7 +4,7 @@ import { useEffect, useReducer, useCallback, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import {
   DAYS, DISPLAY_ORDER, DISPLAY_SHORT, START_HOUR, END_HOUR, HOUR_PX,
-  getWeekDates, getWeekKey, getEffectiveClass, fmtTimeRange, fmtDate, locColorClass,
+  getWeekDates, getWeekKey, getInitialWeekKey, getEffectiveClass, fmtTimeRange, fmtDate, locColorClass,
 } from "@/lib/dates";
 import type { Class, Signup, Override, SignupMap, OverrideMap } from "@/lib/types";
 import ClassBlock from "./ClassBlock";
@@ -84,15 +84,18 @@ export default function Calendar({ classes: initialClasses }: Props) {
   const [classes, setClasses] = useState<Class[]>(initialClasses);
   const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
   const [state, dispatch] = useReducer(reducer, {
-    weekKey: getWeekKey(new Date()),
+    weekKey: getInitialWeekKey(new Date()),
     signups: {},
     overrides: {},
     loading: true,
   });
 
-  // Default selected mobile day to today's column
+  // Default selected mobile day to today's column, unless today is Saturday
+  // (we're showing next week, so default to Sunday — the first day shown).
   const [selectedMobileDay, setSelectedMobileDay] = useState(() => {
-    const jsDay = new Date().getDay(); // 0=Sun
+    const now = new Date();
+    if (now.getDay() === 6) return DISPLAY_ORDER.indexOf(6); // Sunday column
+    const jsDay = now.getDay(); // 0=Sun
     const ourDay = (jsDay + 6) % 7;   // 0=Mon…6=Sun
     const col = DISPLAY_ORDER.indexOf(ourDay);
     return col >= 0 ? col : 0;

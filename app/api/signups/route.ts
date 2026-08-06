@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { supabaseAdmin } from "@/lib/supabase";
 import { fmtTimeRange, fmtDateLong, getSlotDate } from "@/lib/dates";
-import { sendSignupEmails, sendCancelEmails } from "@/lib/email";
+import { sendSignupEmails, sendCancelEmails, sendPackageExhaustedEmail } from "@/lib/email";
 
 export async function GET(req: NextRequest) {
   const week = req.nextUrl.searchParams.get("week");
@@ -58,23 +58,39 @@ export async function POST(req: NextRequest) {
   if (insertErr) return NextResponse.json({ error: insertErr.message }, { status: 500 });
 
   // Deduct one class from the student's package if they have one
-  const { data: pkg } = await db.from("packages").select("id, used_classes").eq("student_email", email.trim().toLowerCase()).maybeSingle();
+  const { data: pkg } = await db.from("packages").select("id, used_classes, total_classes").eq("student_email", email.trim().toLowerCase()).maybeSingle();
+  let packageJustExhausted: { totalClasses: number } | null = null;
   if (pkg) {
-    await db.from("packages").update({ used_classes: pkg.used_classes + 1 }).eq("id", pkg.id);
+    const newUsed = pkg.used_classes + 1;
+    await db.from("packages").update({ used_classes: newUsed }).eq("id", pkg.id);
+    if (newUsed >= pkg.total_classes) {
+      packageJustExhausted = { totalClasses: pkg.total_classes };
+    }
   }
 
   // Send signup emails after response is sent (keeps function alive on Vercel)
   const slotDate = getSlotDate(cls.day, week_key);
-  after(sendSignupEmails({
-    className: ov?.class_name ?? cls.class_name,
-    classTime: fmtTimeRange(ov?.time ?? cls.time, ov?.end_time ?? cls.end_time),
-    classDate: fmtDateLong(slotDate),
-    location:  ov?.location ?? cls.location ?? "TBD",
-    studentName:  name.trim(),
-    studentEmail: email.trim().toLowerCase(),
-    taken: taken + 1,
-    capacity,
-  }).catch(console.error));
+  const trimmedName = name.trim();
+  const trimmedEmail = email.trim().toLowerCase();
+  after((async () => {
+    await sendSignupEmails({
+      className: ov?.class_name ?? cls.class_name,
+      classTime: fmtTimeRange(ov?.time ?? cls.time, ov?.end_time ?? cls.end_time),
+      classDate: fmtDateLong(slotDate),
+      location:  ov?.location ?? cls.location ?? "TBD",
+      studentName:  trimmedName,
+      studentEmail: trimmedEmail,
+      taken: taken + 1,
+      capacity,
+    }).catch(console.error);
+    if (packageJustExhausted) {
+      await sendPackageExhaustedEmail({
+        studentName:  trimmedName,
+        studentEmail: trimmedEmail,
+        totalClasses: packageJustExhausted.totalClasses,
+      }).catch(console.error);
+    }
+  })());
 
   return NextResponse.json(signup, { status: 201 });
 }

@@ -99,6 +99,24 @@ export async function notifyStudentsClassCancelled(params: {
   }
 }
 
+export async function sendPackageExhaustedEmail(params: {
+  studentName: string;
+  studentEmail: string;
+  totalClasses: number;
+}) {
+  const { packageExhaustedEmailHtml } = await import("./emailTemplates");
+  const { studentName, studentEmail, totalClasses } = params;
+  const subject = `⚠️ Package Exhausted — ${studentName}`;
+  const html = packageExhaustedEmailHtml({ studentName, studentEmail, totalClasses });
+  const [r1, r2] = await Promise.all([
+    brevoSend(process.env.ADMIN_EMAIL_1!, "Admin", subject, html),
+    process.env.ADMIN_EMAIL_2
+      ? brevoSend(process.env.ADMIN_EMAIL_2, "Admin", subject, html)
+      : Promise.resolve({ ok: true }),
+  ]);
+  console.log("[package exhausted email] admin1:", r1, "admin2:", r2);
+}
+
 export async function sendCancelEmails(params: {
   className: string;
   classTime: string;
