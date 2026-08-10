@@ -29,6 +29,15 @@ export async function POST(req: NextRequest) {
 
   const db = supabaseAdmin();
 
+  // Reject emails an admin has flagged as bad (typos, bounces, etc.)
+  const { data: blocked } = await db.from("blocked_emails").select("email").eq("email", email.trim().toLowerCase()).maybeSingle();
+  if (blocked) {
+    return NextResponse.json(
+      { error: "email_blocked", message: "There's an issue with this email address on file. Please correct it and try again, or contact us for help." },
+      { status: 403 },
+    );
+  }
+
   // Fetch the class
   const { data: cls } = await db.from("classes").select("*").eq("id", class_id).single();
   if (!cls) return NextResponse.json({ error: "Class not found" }, { status: 404 });

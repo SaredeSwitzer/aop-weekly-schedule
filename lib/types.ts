@@ -56,4 +56,12 @@ export type Student = {
   email: string;
   name: string;
   signup_count: number;
+  blocked: boolean;
+};
+
+export type BlockedEmail = {
+  email: string;
+  name: string | null;
+  reason: string | null;
+  created_at: string;
 };

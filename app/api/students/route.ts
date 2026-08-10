@@ -7,12 +7,14 @@ export async function GET() {
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const db = supabaseAdmin();
-  const { data, error } = await db
-    .from("signups")
-    .select("name, email, signed_up_at")
-    .order("signed_up_at", { ascending: false });
+  const [{ data, error }, { data: blockedRows }] = await Promise.all([
+    db.from("signups").select("name, email, signed_up_at").order("signed_up_at", { ascending: false }),
+    db.from("blocked_emails").select("email"),
+  ]);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  const blockedEmails = new Set((blockedRows ?? []).map((b) => b.email.toLowerCase()));
 
   // Deduplicate by email, keeping most recent name + counting signups
   const seen = new Map<string, { name: string; count: number }>();
@@ -26,6 +28,7 @@ export async function GET() {
     email,
     name,
     signup_count: count,
+    blocked: blockedEmails.has(email),
   }));
   return NextResponse.json(students);
 }

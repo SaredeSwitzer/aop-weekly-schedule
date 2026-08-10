@@ -42,6 +42,7 @@ export default function SignupModal({ cls, signups, weekKey, onClose, onSignupSu
   const [toast, setToast]     = useState("");
   const [success, setSuccess] = useState<"signup" | "cancel" | null>(null);
   const [emailFix, setEmailFix] = useState("");
+  const [emailBlocked, setEmailBlocked] = useState(false);
 
   const nameRef   = useRef<HTMLInputElement>(null);
   const cancelRef = useRef<HTMLInputElement>(null);
@@ -51,7 +52,7 @@ export default function SignupModal({ cls, signups, weekKey, onClose, onSignupSu
   const dayStr   = DAYS[cls.day];
   const timeStr  = fmtTimeRange(cls.time, cls.end_time);
 
-  const remEmailInvalid = remembered !== null && !isValidEmail(remembered.email);
+  const remEmailInvalid = remembered !== null && (!isValidEmail(remembered.email) || emailBlocked);
 
   // Load remembered user on mount
   useEffect(() => {
@@ -73,6 +74,7 @@ export default function SignupModal({ cls, signups, weekKey, onClose, onSignupSu
     localStorage.removeItem("yoga_user");
     setRemembered(null);
     setCancelEmail("");
+    setEmailBlocked(false);
   }
 
   async function handleSignup() {
@@ -92,6 +94,12 @@ export default function SignupModal({ cls, signups, weekKey, onClose, onSignupSu
     if (res.status === 409) {
       const { error } = await res.json();
       setToast(error === "already_signed_up" ? "You're already signed up for this class!" : "This class is full.");
+      return;
+    }
+    if (res.status === 403) {
+      const { message } = await res.json();
+      setEmailBlocked(true);
+      setToast(message || "Please correct your email address and try again.");
       return;
     }
     if (!res.ok) { setToast("Something went wrong. Please try again."); return; }
@@ -187,7 +195,7 @@ export default function SignupModal({ cls, signups, weekKey, onClose, onSignupSu
                 {remEmailInvalid && (
                   <div style={{ marginBottom: 14 }}>
                     <div style={{ background: "#fff3cd", border: "1px solid #f0c040", borderRadius: 8, padding: "8px 12px", fontSize: 13, color: "#7a5a00", marginBottom: 8 }}>
-                      ⚠️ The email we have on file (<strong>{remembered.email}</strong>) doesn't look valid. Please enter a correct email to continue.
+                      ⚠️ The email we have on file (<strong>{remembered.email}</strong>) {emailBlocked ? "has an issue" : "doesn't look valid"}. Please enter a correct email to continue.
                     </div>
                     <label className="field-label">Correct Email Address</label>
                     <input className="input-field" type="email" placeholder="your@email.com"
@@ -234,7 +242,7 @@ export default function SignupModal({ cls, signups, weekKey, onClose, onSignupSu
                 {remEmailInvalid && (
                   <div style={{ marginBottom: 14 }}>
                     <div style={{ background: "#fff3cd", border: "1px solid #f0c040", borderRadius: 8, padding: "8px 12px", fontSize: 13, color: "#7a5a00", marginBottom: 8 }}>
-                      ⚠️ The email we have on file (<strong>{remembered.email}</strong>) doesn't look valid. Please enter a correct email to continue.
+                      ⚠️ The email we have on file (<strong>{remembered.email}</strong>) {emailBlocked ? "has an issue" : "doesn't look valid"}. Please enter a correct email to continue.
                     </div>
                     <label className="field-label">Correct Email Address</label>
                     <input className="input-field" type="email" placeholder="your@email.com"

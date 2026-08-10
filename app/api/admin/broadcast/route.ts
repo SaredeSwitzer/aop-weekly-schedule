@@ -13,6 +13,9 @@ export async function POST(req: NextRequest) {
   const { type } = body;
   const db = supabaseAdmin();
 
+  const { data: blockedRows } = await db.from("blocked_emails").select("email");
+  const blockedEmails = new Set((blockedRows ?? []).map((b) => b.email.toLowerCase()));
+
   if (type === "broadcast") {
     const { subject, message } = body;
     if (!subject?.trim() || !message?.trim()) {
@@ -29,7 +32,9 @@ export async function POST(req: NextRequest) {
     for (const s of signups ?? []) {
       if (!seen.has(s.email.toLowerCase())) seen.set(s.email.toLowerCase(), s.name);
     }
-    const students = Array.from(seen.entries()).map(([email, name]) => ({ email, name }));
+    const students = Array.from(seen.entries())
+      .filter(([email]) => !blockedEmails.has(email))
+      .map(([email, name]) => ({ email, name }));
 
     let sent = 0, failed = 0;
     for (const s of students) {
@@ -53,7 +58,9 @@ export async function POST(req: NextRequest) {
     for (const s of signups ?? []) {
       if (!seen.has(s.email.toLowerCase())) seen.set(s.email.toLowerCase(), s.name);
     }
-    const students = Array.from(seen.entries()).map(([email, name]) => ({ email, name }));
+    const students = Array.from(seen.entries())
+      .filter(([email]) => !blockedEmails.has(email))
+      .map(([email, name]) => ({ email, name }));
 
     const dates = getWeekDates(week_key);
     const weekOf = `${fmtDate(dates[0])} – ${fmtDate(dates[6])}`;

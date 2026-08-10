@@ -85,6 +85,9 @@ export default function AdminPanel({ initialClasses }: Props) {
   // Per-class UI state
   const [editingId, setEditingId]   = useState<string | null>(null);
   const [editForm, setEditForm]     = useState<EditForm | null>(null);
+  const [permEditingId, setPermEditingId] = useState<string | null>(null);
+  const [permEditForm, setPermEditForm]   = useState<NewForm | null>(null);
+  const [permEditLoading, setPermEditLoading] = useState(false);
   const [viewingId, setViewingId]   = useState<string | null>(null);
   const [emailClassForm, setEmailClassForm] = useState<{ subject: string; body: string } | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null); // class id
@@ -220,6 +223,8 @@ export default function AdminPanel({ initialClasses }: Props) {
     setEditingId(null);
     setViewingId(null);
     setEmailClassForm(null);
+    setPermEditingId(null);
+    setPermEditForm(null);
   }
 
   // ── Location helpers ─────────────────────────────────────────────────────
@@ -318,6 +323,47 @@ export default function AdminPanel({ initialClasses }: Props) {
     setEditingId(null);
     setEditForm(null);
     showToast("Updated for this week. Students notified.");
+  }
+
+  // ── Permanent edit (base recurring class) ────────────────────────────────
+  function startPermEdit(cls: Class) {
+    setPermEditForm({
+      day:        String(cls.day),
+      time:       cls.time,
+      end_time:   cls.end_time ?? "",
+      class_name: cls.class_name,
+      location:   cls.location ?? "",
+      capacity:   String(cls.capacity),
+    });
+    setPermEditingId(cls.id);
+    setEditingId(null);
+    setViewingId(null);
+  }
+
+  async function savePermEdit(cls: Class) {
+    if (!permEditForm) return;
+    setPermEditLoading(true);
+    const res = await fetch("/api/classes", {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        id:         cls.id,
+        day:        parseInt(permEditForm.day),
+        time:       permEditForm.time,
+        end_time:   permEditForm.end_time || null,
+        class_name: permEditForm.class_name.trim() || cls.class_name,
+        location:   permEditForm.location || null,
+        capacity:   parseInt(permEditForm.capacity) || cls.capacity,
+      }),
+    });
+    setPermEditLoading(false);
+    if (!res.ok) { showToast("Failed to save class.", false); return; }
+    const updated: Class = await res.json();
+    setClasses((prev) => prev.map((c) => c.id === cls.id ? updated : c));
+    trackLocation(updated.location);
+    setPermEditingId(null);
+    setPermEditForm(null);
+    showToast("Class updated going forward.");
   }
 
   async function cancelThisWeek(cls: Class) {
@@ -710,8 +756,16 @@ export default function AdminPanel({ initialClasses }: Props) {
                 </div>
 
                 {/* Action buttons */}
-                {!isEditing && (
+                {!isEditing && permEditingId !== cls.id && (
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
+                    <button
+                      className="btn-cancel"
+                      style={{ fontSize: 12, padding: "5px 11px" }}
+                      onClick={() => startPermEdit(cls)}
+                      disabled={isLoading}
+                    >
+                      Edit Class
+                    </button>
                     {!cancelled && (
                       <button
                         className="btn-cancel"
@@ -750,6 +804,56 @@ export default function AdminPanel({ initialClasses }: Props) {
                     >
                       {isLoading ? "…" : "Remove Forever"}
                     </button>
+                  </div>
+                )}
+
+                {/* Permanent edit form (base recurring class) */}
+                {permEditingId === cls.id && permEditForm && (
+                  <div style={{ marginTop: 10, background: "#faf7f2", borderRadius: 10, padding: "14px 16px", border: "1px solid #ede5dc" }}>
+                    <div style={{ fontSize: 12, color: "#9a7d5e", marginBottom: 10, fontWeight: 600 }}>Edit recurring class — applies to all future weeks</div>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
+                      <div>
+                        <label className="field-label">Day</label>
+                        <select className="input-field" value={permEditForm.day} onChange={(e) => setPermEditForm((f) => f && ({ ...f, day: e.target.value }))}>
+                          {DAY_OPTIONS.map((d) => <option key={d.value} value={d.value}>{d.label}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="field-label">Capacity</label>
+                        <input className="input-field" type="number" min={1} value={permEditForm.capacity} onChange={(e) => setPermEditForm((f) => f && ({ ...f, capacity: e.target.value }))} />
+                      </div>
+                      <div>
+                        <label className="field-label">Start Time</label>
+                        <input className="input-field" type="time" value={permEditForm.time} onChange={(e) => setPermEditForm((f) => f && ({ ...f, time: e.target.value }))} />
+                      </div>
+                      <div>
+                        <label className="field-label">End Time</label>
+                        <input className="input-field" type="time" value={permEditForm.end_time} onChange={(e) => setPermEditForm((f) => f && ({ ...f, end_time: e.target.value }))} />
+                      </div>
+                    </div>
+                    <div style={{ marginBottom: 8 }}>
+                      <label className="field-label">Class Name</label>
+                      <input className="input-field" type="text" value={permEditForm.class_name} onChange={(e) => setPermEditForm((f) => f && ({ ...f, class_name: e.target.value }))} />
+                    </div>
+                    <div style={{ marginBottom: 12 }}>
+                      <label className="field-label">Location</label>
+                      <LocationField
+                        value={permEditForm.location}
+                        onChange={(v) => setPermEditForm((f) => f && ({ ...f, location: v }))}
+                        managedLocations={managedLocations}
+                      />
+                    </div>
+                    <div style={{ fontSize: 12, color: "#bbb", marginBottom: 10 }}>
+                      This changes the regular schedule going forward. It does not affect any week-specific overrides already in place.
+                    </div>
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <button className="btn-primary" style={{ fontSize: 13 }} onClick={() => savePermEdit(cls)} disabled={permEditLoading}>
+                        {permEditLoading ? "Saving…" : "Save →"}
+                      </button>
+                      <button className="btn-cancel" style={{ fontSize: 13 }} onClick={() => { setPermEditingId(null); setPermEditForm(null); }}>
+                        Cancel
+                      </button>
+                    </div>
                   </div>
                 )}
 

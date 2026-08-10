@@ -123,6 +123,29 @@ export default function StudentsSection({ showToast }: Props) {
     setEditingEmail(null);
   }
 
+  async function blockStudent(student: Student) {
+    if (!confirm(`Block ${student.name} (${student.email})? They won't be able to sign up with this email, and it will be skipped in broadcasts and reminders until unblocked.`)) return;
+    setSaving(true);
+    const res = await fetch("/api/blocked-emails", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email: student.email, name: student.name }),
+    });
+    setSaving(false);
+    if (!res.ok) { showToast("Failed to block student.", false); return; }
+    setStudents((prev) => prev.map((s) => s.email === student.email ? { ...s, blocked: true } : s));
+    showToast(`${student.name} blocked from signups and mailing list.`);
+  }
+
+  async function unblockStudent(student: Student) {
+    setSaving(true);
+    const res = await fetch(`/api/blocked-emails?email=${encodeURIComponent(student.email)}`, { method: "DELETE" });
+    setSaving(false);
+    if (!res.ok) { showToast("Failed to unblock student.", false); return; }
+    setStudents((prev) => prev.map((s) => s.email === student.email ? { ...s, blocked: false } : s));
+    showToast(`${student.name} unblocked.`);
+  }
+
   async function deletePackage(student: Student) {
     const pkg = pkgFor(student.email);
     if (!pkg) return;
@@ -177,7 +200,14 @@ export default function StudentsSection({ showToast }: Props) {
                 {/* Student row */}
                 <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 600, fontSize: 14, color: "#3d2e1e" }}>{student.name}</div>
+                    <div style={{ fontWeight: 600, fontSize: 14, color: "#3d2e1e" }}>
+                      {student.name}
+                      {student.blocked && (
+                        <span style={{ marginLeft: 8, fontSize: 11, background: "#fde8e8", color: "#e07070", borderRadius: 20, padding: "2px 8px", fontWeight: 500 }}>
+                          Blocked
+                        </span>
+                      )}
+                    </div>
                     <div style={{ fontSize: 12, color: "#9a7d5e" }}>{student.email}</div>
                     <div style={{ fontSize: 11, color: "#bbb", marginTop: 1 }}>
                       {student.signup_count} class{student.signup_count !== 1 ? "es" : ""} total
@@ -188,13 +218,34 @@ export default function StudentsSection({ showToast }: Props) {
                     )}
                   </div>
                   {!isEditing && (
-                    <button
-                      className="btn-cancel"
-                      style={{ fontSize: 11, padding: "4px 10px", whiteSpace: "nowrap" }}
-                      onClick={() => startEdit(student)}
-                    >
-                      {pkg ? "Edit Package" : "+ Package"}
-                    </button>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-end" }}>
+                      <button
+                        className="btn-cancel"
+                        style={{ fontSize: 11, padding: "4px 10px", whiteSpace: "nowrap" }}
+                        onClick={() => startEdit(student)}
+                      >
+                        {pkg ? "Edit Package" : "+ Package"}
+                      </button>
+                      {student.blocked ? (
+                        <button
+                          className="btn-cancel"
+                          style={{ fontSize: 11, padding: "4px 10px", whiteSpace: "nowrap" }}
+                          onClick={() => unblockStudent(student)}
+                          disabled={saving}
+                        >
+                          Unblock
+                        </button>
+                      ) : (
+                        <button
+                          className="btn-cancel"
+                          style={{ fontSize: 11, padding: "4px 10px", whiteSpace: "nowrap", color: "#c44", borderColor: "#c44" }}
+                          onClick={() => blockStudent(student)}
+                          disabled={saving}
+                        >
+                          Block / Remove from Mailing List
+                        </button>
+                      )}
+                    </div>
                   )}
                 </div>
 
