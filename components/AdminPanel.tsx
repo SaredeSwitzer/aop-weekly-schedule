@@ -764,7 +764,7 @@ export default function AdminPanel({ initialClasses }: Props) {
                       onClick={() => startPermEdit(cls)}
                       disabled={isLoading}
                     >
-                      Edit Class
+                      Edit Class (Recurring)
                     </button>
                     {!cancelled && (
                       <button
@@ -773,7 +773,7 @@ export default function AdminPanel({ initialClasses }: Props) {
                         onClick={() => startEdit(cls)}
                         disabled={isLoading}
                       >
-                        Edit This Week
+                        Edit Just This Week
                       </button>
                     )}
                     {!cancelled && (
