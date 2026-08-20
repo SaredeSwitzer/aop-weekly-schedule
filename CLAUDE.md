@@ -53,8 +53,11 @@ lib/
   email.ts                # Brevo send helper
   emailTemplates.ts       # HTML email builders
   dates.ts                # getWeekKey, getWeekDates, fmtTime, fmtTimeRange
+  push.ts                 # sendPushToAdmins() — web-push to all admin subscriptions
 
 middleware.ts             # Clerk: protects /admin/* routes
+worker/
+  index.ts                # Custom service worker logic (push + notificationclick), merged into next-pwa's generated sw.js
 public/
   manifest.json           # PWA manifest
   icon-192.png
@@ -76,6 +79,9 @@ Fill in `.env.local` for local dev. Mirror all in Vercel dashboard.
 | `ADMIN_EMAIL_1` | email templates | intouchyoga@icloud.com |
 | `ADMIN_EMAIL_2` | email templates | saredeswitzer@gmail.com |
 | `SENDER_EMAIL` | email templates | saredeswitzer@gmail.com |
+| `NEXT_PUBLIC_VAPID_PUBLIC_KEY` | `lib/push.ts`, `PushNotificationToggle.tsx` | Web Push VAPID public key |
+| `VAPID_PRIVATE_KEY` | `lib/push.ts` (server only) | Web Push VAPID private key |
+| `VAPID_SUBJECT` | `lib/push.ts` | `mailto:` contact required by the Push spec |
 
 ## Local Development
 
@@ -84,6 +90,8 @@ npm run dev    # starts at http://localhost:3000
 ```
 
 `.env.local` is read automatically by Next.js. No CLI wrapper needed (unlike Netlify).
+
+**Production builds (`npm run build`, and Vercel's build) use `next build --webpack`, not Turbopack.** `@ducanh2912/next-pwa` is a webpack plugin — under Turbopack (Next 16's default) it silently generates no service worker at all, so PWA install/offline support and push notifications would be dead in prod. Keep `--webpack` on the build script until next-pwa supports Turbopack.
 
 ## Key Concepts
 

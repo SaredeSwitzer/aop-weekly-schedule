@@ -10,6 +10,7 @@ import {
 import type { Class, Signup, Override, SignupMap, OverrideMap } from "@/lib/types";
 import WeekNav from "./WeekNav";
 import StudentsSection from "./StudentsSection";
+import PushNotificationToggle from "./PushNotificationToggle";
 
 const DEFAULT_LOCATIONS = ["102 West 80th St", "21 West End Ave", "Turtle Pond / Central Park", "Zoom"];
 const LS_KEY = "aop_locations";
@@ -544,6 +545,9 @@ export default function AdminPanel({ initialClasses }: Props) {
       </header>
 
       <div style={{ maxWidth: 800, margin: "0 auto", padding: "24px 16px" }}>
+
+        {/* ── Push Notifications ──────────────────────────────────────────── */}
+        <PushNotificationToggle showToast={showToast} />
 
         {/* ── Students & Packages ─────────────────────────────────────────── */}
         <StudentsSection showToast={showToast} />

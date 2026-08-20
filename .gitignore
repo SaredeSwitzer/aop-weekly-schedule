@@ -42,3 +42,11 @@ next-env.d.ts
 
 # migration — contains student PII, never commit
 scripts/firebase-export.json
+
+# next-pwa generated service worker
+/public/sw.js
+/public/sw.js.map
+/public/workbox-*.js
+/public/workbox-*.js.map
+/public/worker-*.js
+/public/worker-*.js.map

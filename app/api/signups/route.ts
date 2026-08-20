@@ -4,6 +4,7 @@ import { supabase } from "@/lib/supabase";
 import { supabaseAdmin } from "@/lib/supabase";
 import { fmtTimeRange, fmtDateLong, getSlotDate } from "@/lib/dates";
 import { sendSignupEmails, sendCancelEmails, sendPackageExhaustedEmail } from "@/lib/email";
+import { sendPushToAdmins } from "@/lib/push";
 
 export async function GET(req: NextRequest) {
   const week = req.nextUrl.searchParams.get("week");
@@ -99,6 +100,11 @@ export async function POST(req: NextRequest) {
         totalClasses: packageJustExhausted.totalClasses,
       }).catch(console.error);
     }
+    await sendPushToAdmins({
+      title: "New signup",
+      body: `${trimmedName} signed up for ${ov?.class_name ?? cls.class_name} (${taken + 1}/${capacity})`,
+      url: "/admin",
+    }).catch(console.error);
   })());
 
   return NextResponse.json(signup, { status: 201 });
@@ -169,16 +175,23 @@ export async function DELETE(req: NextRequest) {
 
   // Send cancel emails after response is sent (keeps function alive on Vercel)
   const slotDate = getSlotDate(cls.day, week_key);
-  after(sendCancelEmails({
-    className: ov?.class_name ?? cls.class_name,
-    classTime: fmtTimeRange(ov?.time ?? cls.time, ov?.end_time ?? cls.end_time),
-    classDate: fmtDateLong(slotDate),
-    location:  ov?.location ?? cls.location ?? "TBD",
-    studentName:  signup.name,
-    studentEmail: signup.email,
-    takenAfter,
-    capacity,
-  }).catch(console.error));
+  after((async () => {
+    await sendCancelEmails({
+      className: ov?.class_name ?? cls.class_name,
+      classTime: fmtTimeRange(ov?.time ?? cls.time, ov?.end_time ?? cls.end_time),
+      classDate: fmtDateLong(slotDate),
+      location:  ov?.location ?? cls.location ?? "TBD",
+      studentName:  signup.name,
+      studentEmail: signup.email,
+      takenAfter,
+      capacity,
+    }).catch(console.error);
+    await sendPushToAdmins({
+      title: "Signup cancelled",
+      body: `${signup.name} cancelled ${ov?.class_name ?? cls.class_name} (${takenAfter}/${capacity})`,
+      url: "/admin",
+    }).catch(console.error);
+  })());
 
   return NextResponse.json({ success: true });
 }
