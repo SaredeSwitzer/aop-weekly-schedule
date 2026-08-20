@@ -25,6 +25,25 @@ export default function PushNotificationToggle({ showToast }: Props) {
     });
   }, []);
 
+  // Clear the app icon badge whenever the admin actually has this tab open and focused.
+  useEffect(() => {
+    if (!("serviceWorker" in navigator)) return;
+
+    function clearBadge() {
+      if (document.visibilityState !== "visible") return;
+      navigator.serviceWorker.ready.then((reg) => reg.active?.postMessage({ type: "CLEAR_BADGE" }));
+      if ("clearAppBadge" in navigator) navigator.clearAppBadge().catch(() => {});
+    }
+
+    clearBadge();
+    document.addEventListener("visibilitychange", clearBadge);
+    window.addEventListener("focus", clearBadge);
+    return () => {
+      document.removeEventListener("visibilitychange", clearBadge);
+      window.removeEventListener("focus", clearBadge);
+    };
+  }, []);
+
   async function enable() {
     setLoading(true);
     try {
@@ -86,8 +105,8 @@ export default function PushNotificationToggle({ showToast }: Props) {
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
         <div style={{ fontSize: 13, color: "#666" }}>
           {subscribed
-            ? "You'll get a push notification on this device for every signup and cancellation."
-            : "Get a push notification on this device whenever someone signs up or cancels."}
+            ? "You'll get a push notification and an app icon badge count on this device for every signup and cancellation."
+            : "Get a push notification and an app icon badge count on this device whenever someone signs up or cancels."}
         </div>
         <button
           className="btn"
