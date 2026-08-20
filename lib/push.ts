@@ -7,12 +7,28 @@ webpush.setVapidDetails(
   process.env.VAPID_PRIVATE_KEY!,
 );
 
-export async function sendPushToAdmins(payload: { title: string; body: string; url?: string }) {
+// Records a notification (shown in the admin panel's inbox until dismissed)
+// and pushes it to every admin device, including the current unread count
+// so each device's app-icon badge stays in sync without a round trip.
+export async function notifyAdmins(notification: { type: "signup" | "cancel"; title: string; body: string; url?: string }) {
   const db = supabaseAdmin();
+
+  const { data: inserted } = await db.from("admin_notifications")
+    .insert({ type: notification.type, title: notification.title, body: notification.body, url: notification.url ?? "/admin" })
+    .select().single();
+
+  const { count } = await db.from("admin_notifications").select("*", { count: "exact", head: true });
+
   const { data: subs } = await db.from("push_subscriptions").select("*");
   if (!subs?.length) return;
 
-  const json = JSON.stringify(payload);
+  const payload = JSON.stringify({
+    title: notification.title,
+    body: notification.body,
+    url: notification.url ?? "/admin",
+    notificationId: inserted?.id,
+    badgeCount: count ?? 0,
+  });
   const staleIds: string[] = [];
 
   await Promise.all(
@@ -20,7 +36,7 @@ export async function sendPushToAdmins(payload: { title: string; body: string; u
       try {
         await webpush.sendNotification(
           { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
-          json,
+          payload,
         );
       } catch (e) {
         const status = (e as { statusCode?: number }).statusCode;

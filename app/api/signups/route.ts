@@ -4,7 +4,7 @@ import { supabase } from "@/lib/supabase";
 import { supabaseAdmin } from "@/lib/supabase";
 import { fmtTimeRange, fmtDateLong, getSlotDate } from "@/lib/dates";
 import { sendSignupEmails, sendCancelEmails, sendPackageExhaustedEmail } from "@/lib/email";
-import { sendPushToAdmins } from "@/lib/push";
+import { notifyAdmins } from "@/lib/push";
 
 export async function GET(req: NextRequest) {
   const week = req.nextUrl.searchParams.get("week");
@@ -100,7 +100,8 @@ export async function POST(req: NextRequest) {
         totalClasses: packageJustExhausted.totalClasses,
       }).catch(console.error);
     }
-    await sendPushToAdmins({
+    await notifyAdmins({
+      type: "signup",
       title: "New signup",
       body: `${trimmedName} signed up for ${ov?.class_name ?? cls.class_name} (${taken + 1}/${capacity})`,
       url: "/admin",
@@ -186,7 +187,8 @@ export async function DELETE(req: NextRequest) {
       takenAfter,
       capacity,
     }).catch(console.error);
-    await sendPushToAdmins({
+    await notifyAdmins({
+      type: "cancel",
       title: "Signup cancelled",
       body: `${signup.name} cancelled ${ov?.class_name ?? cls.class_name} (${takenAfter}/${capacity})`,
       url: "/admin",
