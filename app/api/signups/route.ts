@@ -103,7 +103,7 @@ export async function POST(req: NextRequest) {
     await notifyAdmins({
       type: "signup",
       title: "New signup",
-      body: `${trimmedName} signed up for ${ov?.class_name ?? cls.class_name} (${taken + 1}/${capacity})`,
+      body: `${trimmedName} signed up for ${ov?.class_name ?? cls.class_name} on ${fmtDateLong(slotDate)} at ${fmtTimeRange(ov?.time ?? cls.time, ov?.end_time ?? cls.end_time)} (${taken + 1}/${capacity})`,
       url: "/admin",
     }).catch(console.error);
   })());
@@ -190,7 +190,7 @@ export async function DELETE(req: NextRequest) {
     await notifyAdmins({
       type: "cancel",
       title: "Signup cancelled",
-      body: `${signup.name} cancelled ${ov?.class_name ?? cls.class_name} (${takenAfter}/${capacity})`,
+      body: `${signup.name} cancelled ${ov?.class_name ?? cls.class_name} on ${fmtDateLong(slotDate)} at ${fmtTimeRange(ov?.time ?? cls.time, ov?.end_time ?? cls.end_time)} (${takenAfter}/${capacity})`,
       url: "/admin",
     }).catch(console.error);
   })());
