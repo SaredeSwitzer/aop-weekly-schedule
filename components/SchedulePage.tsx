@@ -13,7 +13,7 @@ type Props = {
 };
 
 export default function SchedulePage({ initialClasses }: Props) {
-  const { user } = useUser();
+  const { user, isLoaded } = useUser();
   const isAdmin = !!user?.emailAddresses.some((e) => ADMIN_EMAILS.includes(e.emailAddress));
 
   return (
@@ -38,13 +38,13 @@ export default function SchedulePage({ initialClasses }: Props) {
         </div>
       </header>
 
-      {isAdmin && (
+      {isLoaded && isAdmin && (
         <div style={{ maxWidth: 800, margin: "16px auto 0", padding: "0 16px" }}>
           <AdminNotifications />
         </div>
       )}
 
-      {!isAdmin && (
+      {isLoaded && !isAdmin && (
         <div style={{ maxWidth: 800, margin: "16px auto 0", padding: "0 16px" }}>
           <StudentPushBanner />
         </div>
