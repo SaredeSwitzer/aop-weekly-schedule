@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useUser } from "@clerk/nextjs";
 import Calendar from "./Calendar";
 import AdminNotifications from "./AdminNotifications";
+import StudentPushBanner from "./StudentPushBanner";
 import { ADMIN_EMAILS } from "@/lib/adminEmails";
 import type { Class } from "@/lib/types";
 
@@ -40,6 +41,12 @@ export default function SchedulePage({ initialClasses }: Props) {
       {isAdmin && (
         <div style={{ maxWidth: 800, margin: "16px auto 0", padding: "0 16px" }}>
           <AdminNotifications />
+        </div>
+      )}
+
+      {!isAdmin && (
+        <div style={{ maxWidth: 800, margin: "16px auto 0", padding: "0 16px" }}>
+          <StudentPushBanner />
         </div>
       )}
 
