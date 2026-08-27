@@ -44,11 +44,10 @@ export default function SchedulePage({ initialClasses }: Props) {
         </div>
       )}
 
-      {isLoaded && !isAdmin && (
-        <div style={{ maxWidth: 800, margin: "16px auto 0", padding: "0 16px" }}>
-          <StudentPushBanner />
-        </div>
-      )}
+      {/* Shown regardless of admin status — admins sign up for classes as students too. */}
+      <div style={{ maxWidth: 800, margin: "16px auto 0", padding: "0 16px" }}>
+        <StudentPushBanner />
+      </div>
 
       <Calendar classes={initialClasses} />
     </>
