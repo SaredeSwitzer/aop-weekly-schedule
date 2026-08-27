@@ -59,7 +59,7 @@ export async function sendSignupEmails(params: {
   const smsBody = `AOP Shala: You're signed up for ${className} on ${classDate} at ${classTime}${location ? ` (${location})` : ""}.`;
 
   const [, admin1Result, admin2Result] = await Promise.all([
-    notifyStudent({ email: studentEmail, name: studentName, subject, emailHtml: studentHtml, smsBody }),
+    notifyStudent({ email: studentEmail, name: studentName, subject, emailHtml: studentHtml, smsBody, pushTitle: "Signup Confirmed", pushUrl: "/" }),
     brevoSend(process.env.ADMIN_EMAIL_1!, "Admin", adminSubject, adminHtml),
     process.env.ADMIN_EMAIL_2
       ? brevoSend(process.env.ADMIN_EMAIL_2, "Admin", adminSubject, adminHtml)
@@ -87,6 +87,8 @@ export async function notifyStudentsClassUpdate(params: {
       subject: `Class Update — ${className} · ${classDate}`,
       emailHtml: studentEmailHtml({ toName: s.name, action: "Class Update", subtext: "Your class details have been updated.", className, classTime, classDate, location, spotsLeft, capacity, manageUrl: manageUrlFor(s.email) }),
       smsBody,
+      pushTitle: "Class Updated",
+      pushUrl: "/",
     }).catch(console.error);
   }
 }
@@ -109,6 +111,8 @@ export async function notifyStudentsClassCancelled(params: {
       subject: `Class Cancelled — ${className} · ${classDate}`,
       emailHtml: studentEmailHtml({ toName: s.name, action: "Class Cancelled", subtext: "This class has been cancelled for this week.", className, classTime, classDate, location, spotsLeft: 0, capacity, manageUrl: manageUrlFor(s.email) }),
       smsBody,
+      pushTitle: "Class Cancelled",
+      pushUrl: "/",
     }).catch(console.error);
   }
 }
@@ -154,7 +158,7 @@ export async function sendCancelEmails(params: {
   const smsBody = `AOP Shala: You've been removed from ${className} on ${classDate} at ${classTime}.`;
 
   await Promise.all([
-    notifyStudent({ email: studentEmail, name: studentName, subject, emailHtml: studentHtml, smsBody }),
+    notifyStudent({ email: studentEmail, name: studentName, subject, emailHtml: studentHtml, smsBody, pushTitle: "Cancellation Confirmed", pushUrl: "/" }),
     brevoSend(process.env.ADMIN_EMAIL_1!, "Admin", adminSubject, adminHtml),
     process.env.ADMIN_EMAIL_2
       ? brevoSend(process.env.ADMIN_EMAIL_2, "Admin", adminSubject, adminHtml)

@@ -50,3 +50,38 @@ export async function notifyAdmins(notification: { type: "signup" | "cancel"; ti
     await db.from("push_subscriptions").delete().in("id", staleIds);
   }
 }
+
+// Pushes to every device a student has subscribed on (there's no separate
+// "opt in" flag — subscribing a device *is* the opt-in, same as admin push).
+export async function notifyStudentPush(email: string, notification: { title: string; body: string; url?: string }) {
+  const db = supabaseAdmin();
+
+  const { data: subs } = await db.from("student_push_subscriptions").select("*").eq("email", email.toLowerCase());
+  if (!subs?.length) return;
+
+  const payload = JSON.stringify({
+    title: notification.title,
+    body: notification.body,
+    url: notification.url ?? "/",
+  });
+  const staleIds: string[] = [];
+
+  await Promise.all(
+    subs.map(async (sub) => {
+      try {
+        await webpush.sendNotification(
+          { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
+          payload,
+        );
+      } catch (e) {
+        const status = (e as { statusCode?: number }).statusCode;
+        if (status === 404 || status === 410) staleIds.push(sub.id);
+        else console.error("student push send failed", e);
+      }
+    }),
+  );
+
+  if (staleIds.length) {
+    await db.from("student_push_subscriptions").delete().in("id", staleIds);
+  }
+}

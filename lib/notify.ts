@@ -1,6 +1,7 @@
 import { supabaseAdmin } from "./supabase";
 import { brevoSend } from "./email";
 import { sendSms } from "./sms";
+import { notifyStudentPush } from "./push";
 
 export type StudentPreferences = {
   email: string;
@@ -21,13 +22,18 @@ export async function getStudentPreferences(email: string): Promise<StudentPrefe
 }
 
 // Sends to a student's opted-in channels (email defaults on, SMS defaults off
-// until they set a phone number and opt in via /preferences).
+// until they set a phone number and opt in via /preferences). Push has no
+// separate opt-in flag — subscribing a device via the toggle on /preferences
+// *is* the opt-in — so it's sent whenever the student has a subscribed device.
 export async function notifyStudent(params: {
   email: string;
   name: string;
   subject: string;
   emailHtml: string;
   smsBody?: string;
+  pushTitle?: string;
+  pushBody?: string;
+  pushUrl?: string;
 }) {
   const prefs = await getStudentPreferences(params.email);
   const tasks: Promise<unknown>[] = [];
@@ -37,6 +43,13 @@ export async function notifyStudent(params: {
   }
   if (prefs.sms_opt_in && prefs.phone && params.smsBody) {
     tasks.push(sendSms(prefs.phone, params.smsBody));
+  }
+  if (params.pushBody || params.smsBody) {
+    tasks.push(notifyStudentPush(params.email, {
+      title: params.pushTitle ?? "AOP Shala NYC",
+      body: params.pushBody ?? params.smsBody!,
+      url: params.pushUrl,
+    }));
   }
 
   await Promise.all(tasks);

@@ -48,6 +48,9 @@ export async function POST(req: NextRequest) {
         email: s.email, name: s.name, subject,
         emailHtml: broadcastEmailHtml(s.name, message, manageUrlFor(s.email)),
         smsBody,
+        pushTitle: subject,
+        pushBody: message,
+        pushUrl: "/",
       }).then(() => sent++).catch(() => failed++);
     }
     return NextResponse.json({ sent, failed });
@@ -84,6 +87,9 @@ export async function POST(req: NextRequest) {
         subject: `Weekly Schedule — Week of ${weekOf}`,
         emailHtml: weeklyReminderHtml(s.name, weekOf, scheduleUrl),
         smsBody,
+        pushTitle: "Weekly Schedule",
+        pushBody: `The schedule for the week of ${weekOf} is live.`,
+        pushUrl: "/",
       }).then(() => sent++).catch(() => failed++);
     }
     return NextResponse.json({ sent, failed });

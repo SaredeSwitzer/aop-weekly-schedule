@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import StudentPushToggle from "@/components/StudentPushToggle";
 
 type Prefs = { email: string; phone: string; email_opt_in: boolean; sms_opt_in: boolean };
 
@@ -121,6 +122,13 @@ function PreferencesForm() {
           <button className="btn-primary" onClick={save} disabled={saving}>
             {saving ? "Saving…" : "Save Preferences"}
           </button>
+
+          <div style={{ marginTop: 24, paddingTop: 20, borderTop: "1px solid #eee" }}>
+            <StudentPushToggle
+              email={prefs.email}
+              showToast={(msg, ok = true) => setToast(ok ? `✓ ${msg}` : msg)}
+            />
+          </div>
         </div>
       )}
     </div>
