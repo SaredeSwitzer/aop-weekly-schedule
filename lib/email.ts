@@ -1,5 +1,11 @@
 import nodemailer from "nodemailer";
 
+const SITE_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://aop-weekly-schedule.vercel.app";
+
+function manageUrlFor(email: string): string {
+  return `${SITE_URL}/preferences?email=${encodeURIComponent(email)}`;
+}
+
 function getTransport() {
   return nodemailer.createTransport({
     service: "gmail",
@@ -41,23 +47,25 @@ export async function sendSignupEmails(params: {
   capacity: number;
 }) {
   const { studentEmailHtml, adminEmailHtml } = await import("./emailTemplates");
+  const { notifyStudent } = await import("./notify");
   const { className, classTime, classDate, location, studentName, studentEmail, taken, capacity } = params;
   const spotsLeft = capacity - taken;
 
-  const studentHtml = studentEmailHtml({ className, classTime, classDate, location, toName: studentName, action: "Signup", spotsLeft, capacity });
+  const studentHtml = studentEmailHtml({ className, classTime, classDate, location, toName: studentName, action: "Signup", spotsLeft, capacity, manageUrl: manageUrlFor(studentEmail) });
   const adminHtml   = adminEmailHtml({ className, classTime, classDate, location, studentName, studentEmail, action: "New Signup", spotsTaken: taken, spotsLeft, capacity });
 
   const subject = `Signup Confirmation — ${className} · ${classDate}`;
   const adminSubject = `New Signup — ${studentName} · ${className} (${classDate})`;
+  const smsBody = `AOP Shala: You're signed up for ${className} on ${classDate} at ${classTime}${location ? ` (${location})` : ""}.`;
 
-  const [studentResult, admin1Result, admin2Result] = await Promise.all([
-    brevoSend(studentEmail, studentName, subject, studentHtml),
+  const [, admin1Result, admin2Result] = await Promise.all([
+    notifyStudent({ email: studentEmail, name: studentName, subject, emailHtml: studentHtml, smsBody }),
     brevoSend(process.env.ADMIN_EMAIL_1!, "Admin", adminSubject, adminHtml),
     process.env.ADMIN_EMAIL_2
       ? brevoSend(process.env.ADMIN_EMAIL_2, "Admin", adminSubject, adminHtml)
       : Promise.resolve({ ok: true }),
   ]);
-  console.log("[signup email] student:", studentResult, "admin1:", admin1Result, "admin2:", admin2Result);
+  console.log("[signup email] admin1:", admin1Result, "admin2:", admin2Result);
 }
 
 export async function notifyStudentsClassUpdate(params: {
@@ -70,13 +78,16 @@ export async function notifyStudentsClassUpdate(params: {
   capacity: number;
 }) {
   const { studentEmailHtml } = await import("./emailTemplates");
+  const { notifyStudent } = await import("./notify");
   const { className, classTime, classDate, location, spotsLeft, capacity } = params;
+  const smsBody = `AOP Shala: ${className} on ${classDate} has been updated — now ${classTime}${location ? ` at ${location}` : ""}.`;
   for (const s of params.signups) {
-    await brevoSend(
-      s.email, s.name,
-      `Class Update — ${className} · ${classDate}`,
-      studentEmailHtml({ toName: s.name, action: "Class Update", subtext: "Your class details have been updated.", className, classTime, classDate, location, spotsLeft, capacity }),
-    ).catch(console.error);
+    await notifyStudent({
+      email: s.email, name: s.name,
+      subject: `Class Update — ${className} · ${classDate}`,
+      emailHtml: studentEmailHtml({ toName: s.name, action: "Class Update", subtext: "Your class details have been updated.", className, classTime, classDate, location, spotsLeft, capacity, manageUrl: manageUrlFor(s.email) }),
+      smsBody,
+    }).catch(console.error);
   }
 }
 
@@ -89,13 +100,16 @@ export async function notifyStudentsClassCancelled(params: {
   capacity: number;
 }) {
   const { studentEmailHtml } = await import("./emailTemplates");
+  const { notifyStudent } = await import("./notify");
   const { className, classTime, classDate, location, capacity } = params;
+  const smsBody = `AOP Shala: ${className} on ${classDate} at ${classTime} has been cancelled.`;
   for (const s of params.signups) {
-    await brevoSend(
-      s.email, s.name,
-      `Class Cancelled — ${className} · ${classDate}`,
-      studentEmailHtml({ toName: s.name, action: "Class Cancelled", subtext: "This class has been cancelled for this week.", className, classTime, classDate, location, spotsLeft: 0, capacity }),
-    ).catch(console.error);
+    await notifyStudent({
+      email: s.email, name: s.name,
+      subject: `Class Cancelled — ${className} · ${classDate}`,
+      emailHtml: studentEmailHtml({ toName: s.name, action: "Class Cancelled", subtext: "This class has been cancelled for this week.", className, classTime, classDate, location, spotsLeft: 0, capacity, manageUrl: manageUrlFor(s.email) }),
+      smsBody,
+    }).catch(console.error);
   }
 }
 
@@ -128,17 +142,19 @@ export async function sendCancelEmails(params: {
   capacity: number;
 }) {
   const { studentEmailHtml, adminEmailHtml } = await import("./emailTemplates");
+  const { notifyStudent } = await import("./notify");
   const { className, classTime, classDate, location, studentName, studentEmail, takenAfter, capacity } = params;
   const spotsLeft = capacity - takenAfter;
 
-  const studentHtml = studentEmailHtml({ className, classTime, classDate, location, toName: studentName, action: "Cancellation", spotsLeft, capacity });
+  const studentHtml = studentEmailHtml({ className, classTime, classDate, location, toName: studentName, action: "Cancellation", spotsLeft, capacity, manageUrl: manageUrlFor(studentEmail) });
   const adminHtml   = adminEmailHtml({ className, classTime, classDate, location, studentName, studentEmail, action: "Cancelled", spotsTaken: takenAfter, spotsLeft, capacity });
 
   const subject = `Cancellation Confirmation — ${className} · ${classDate}`;
   const adminSubject = `Cancelled — ${studentName} · ${className} (${classDate})`;
+  const smsBody = `AOP Shala: You've been removed from ${className} on ${classDate} at ${classTime}.`;
 
   await Promise.all([
-    brevoSend(studentEmail, studentName, subject, studentHtml),
+    notifyStudent({ email: studentEmail, name: studentName, subject, emailHtml: studentHtml, smsBody }),
     brevoSend(process.env.ADMIN_EMAIL_1!, "Admin", adminSubject, adminHtml),
     process.env.ADMIN_EMAIL_2
       ? brevoSend(process.env.ADMIN_EMAIL_2, "Admin", adminSubject, adminHtml)

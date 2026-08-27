@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { auth } from "@clerk/nextjs/server";
-import { brevoSend } from "@/lib/email";
+import { notifyStudent } from "@/lib/notify";
 import { broadcastEmailHtml, weeklyReminderHtml } from "@/lib/emailTemplates";
 import { fmtDate, getWeekDates } from "@/lib/dates";
+
+const SITE_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://aop-weekly-schedule.vercel.app";
+function manageUrlFor(email: string): string {
+  return `${SITE_URL}/preferences?email=${encodeURIComponent(email)}`;
+}
 
 export async function POST(req: NextRequest) {
   const { userId } = await auth();
@@ -36,10 +41,14 @@ export async function POST(req: NextRequest) {
       .filter(([email]) => !blockedEmails.has(email))
       .map(([email, name]) => ({ email, name }));
 
+    const smsBody = `AOP Shala: ${message}`.slice(0, 300);
     let sent = 0, failed = 0;
     for (const s of students) {
-      const result = await brevoSend(s.email, s.name, subject, broadcastEmailHtml(s.name, message));
-      if (result.ok) sent++; else failed++;
+      await notifyStudent({
+        email: s.email, name: s.name, subject,
+        emailHtml: broadcastEmailHtml(s.name, message, manageUrlFor(s.email)),
+        smsBody,
+      }).then(() => sent++).catch(() => failed++);
     }
     return NextResponse.json({ sent, failed });
   }
@@ -67,10 +76,15 @@ export async function POST(req: NextRequest) {
     const origin = req.headers.get("origin") ?? process.env.NEXT_PUBLIC_APP_URL ?? "";
     const scheduleUrl = `${origin}/`;
 
+    const smsBody = `AOP Shala: The schedule for the week of ${weekOf} is live — ${scheduleUrl}`;
     let sent = 0, failed = 0;
     for (const s of students) {
-      const result = await brevoSend(s.email, s.name, `Weekly Schedule — Week of ${weekOf}`, weeklyReminderHtml(s.name, weekOf, scheduleUrl));
-      if (result.ok) sent++; else failed++;
+      await notifyStudent({
+        email: s.email, name: s.name,
+        subject: `Weekly Schedule — Week of ${weekOf}`,
+        emailHtml: weeklyReminderHtml(s.name, weekOf, scheduleUrl),
+        smsBody,
+      }).then(() => sent++).catch(() => failed++);
     }
     return NextResponse.json({ sent, failed });
   }

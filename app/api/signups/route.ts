@@ -5,6 +5,7 @@ import { supabaseAdmin } from "@/lib/supabase";
 import { fmtTimeRange, fmtDateLong, getSlotDate } from "@/lib/dates";
 import { sendSignupEmails, sendCancelEmails, sendPackageExhaustedEmail } from "@/lib/email";
 import { notifyAdmins } from "@/lib/push";
+import { normalizePhone } from "@/lib/sms";
 
 export async function GET(req: NextRequest) {
   const week = req.nextUrl.searchParams.get("week");
@@ -20,7 +21,7 @@ function isValidEmail(e: string): boolean {
 }
 
 export async function POST(req: NextRequest) {
-  const { week_key, class_id, name, email } = await req.json();
+  const { week_key, class_id, name, email, phone, email_opt_in, sms_opt_in } = await req.json();
   if (!week_key || !class_id || !name?.trim() || !email?.trim()) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
   }
@@ -66,6 +67,21 @@ export async function POST(req: NextRequest) {
     .insert({ week_key, class_id, name: name.trim(), email: email.trim().toLowerCase() })
     .select().single();
   if (insertErr) return NextResponse.json({ error: insertErr.message }, { status: 500 });
+
+  // First-time notification preference (phone + email/SMS opt-in), set once
+  // on signup and editable afterward at /preferences.
+  if (email_opt_in !== undefined || sms_opt_in !== undefined) {
+    const { data: existingPrefs } = await db.from("student_preferences").select("email").eq("email", email.trim().toLowerCase()).maybeSingle();
+    if (!existingPrefs) {
+      const normalizedPhone = phone?.trim() ? normalizePhone(phone.trim()) : null;
+      await db.from("student_preferences").insert({
+        email: email.trim().toLowerCase(),
+        phone: normalizedPhone,
+        email_opt_in: email_opt_in ?? true,
+        sms_opt_in: !!sms_opt_in && !!normalizedPhone,
+      });
+    }
+  }
 
   // Deduct one class from the student's package if they have one
   const { data: pkg } = await db.from("packages").select("id, used_classes, total_classes").eq("student_email", email.trim().toLowerCase()).maybeSingle();
@@ -114,15 +130,15 @@ export async function POST(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   const { searchParams } = req.nextUrl;
 
-  // Admin removal by signup UUID (no email notification)
+  // Admin removal by signup UUID
   const signupId = searchParams.get("id");
   if (signupId) {
     const { userId } = await (await import("@clerk/nextjs/server")).auth();
     if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     const db = supabaseAdmin();
 
-    // Fetch before delete so we can restore the package credit
-    const { data: existing } = await db.from("signups").select("email").eq("id", signupId).maybeSingle();
+    // Fetch before delete so we can restore the package credit and notify the student
+    const { data: existing } = await db.from("signups").select("*").eq("id", signupId).maybeSingle();
 
     const { error } = await db.from("signups").delete().eq("id", signupId);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -132,6 +148,32 @@ export async function DELETE(req: NextRequest) {
       const { data: pkg } = await db.from("packages").select("id, used_classes").eq("student_email", existing.email.toLowerCase()).maybeSingle();
       if (pkg && pkg.used_classes > 0) {
         await db.from("packages").update({ used_classes: pkg.used_classes - 1 }).eq("id", pkg.id);
+      }
+    }
+
+    // Notify the student their signup was removed
+    if (existing) {
+      const [{ data: cls }, { data: ov }, { data: remaining }] = await Promise.all([
+        db.from("classes").select("*").eq("id", existing.class_id).single(),
+        db.from("overrides").select("*").eq("week_key", existing.week_key).eq("class_id", existing.class_id).maybeSingle(),
+        db.from("signups").select("id").eq("week_key", existing.week_key).eq("class_id", existing.class_id),
+      ]);
+      if (cls) {
+        const capacity = ov?.capacity ?? cls.capacity;
+        const takenAfter = remaining?.length ?? 0;
+        const slotDate = getSlotDate(cls.day, existing.week_key);
+        after((async () => {
+          await sendCancelEmails({
+            className: ov?.class_name ?? cls.class_name,
+            classTime: fmtTimeRange(ov?.time ?? cls.time, ov?.end_time ?? cls.end_time),
+            classDate: fmtDateLong(slotDate),
+            location:  ov?.location ?? cls.location ?? "TBD",
+            studentName:  existing.name,
+            studentEmail: existing.email,
+            takenAfter,
+            capacity,
+          }).catch(console.error);
+        })());
       }
     }
 

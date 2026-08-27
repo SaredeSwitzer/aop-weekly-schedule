@@ -464,6 +464,7 @@ export default function AdminPanel({ initialClasses }: Props) {
           toName:      s.name,
           subject:     `${emailClassForm.subject} — ${eff.class_name}`,
           htmlContent: emailClassForm.body,
+          smsBody:     `AOP Shala: ${emailClassForm.body}`.slice(0, 300),
         }),
       });
       if (res.ok) sent++; else failed++;

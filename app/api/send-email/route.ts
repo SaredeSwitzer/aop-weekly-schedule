@@ -1,14 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { brevoSend } from "@/lib/email";
+import { notifyStudent } from "@/lib/notify";
 
 export async function POST(req: NextRequest) {
-  const { to, toName, subject, htmlContent } = await req.json();
+  const { to, toName, subject, htmlContent, smsBody } = await req.json();
   if (!to || !subject || !htmlContent) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
   }
-  const result = await brevoSend(to, toName ?? "", subject, htmlContent);
-  if (!result.ok) {
-    return NextResponse.json({ error: result.error }, { status: 500 });
-  }
+  await notifyStudent({ email: to, name: toName ?? "", subject, emailHtml: htmlContent, smsBody });
   return NextResponse.json({ success: true });
 }
