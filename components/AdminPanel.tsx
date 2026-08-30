@@ -12,6 +12,7 @@ import WeekNav from "./WeekNav";
 import StudentsSection from "./StudentsSection";
 import PushNotificationToggle from "./PushNotificationToggle";
 import AdminNotifications from "./AdminNotifications";
+import BadgeClearer from "./BadgeClearer";
 
 const DEFAULT_LOCATIONS = ["102 West 80th St", "21 West End Ave", "Turtle Pond / Central Park", "Zoom"];
 const LS_KEY = "aop_locations";
@@ -524,6 +525,7 @@ export default function AdminPanel({ initialClasses }: Props) {
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div style={{ minHeight: "100vh", background: "#faf7f2" }}>
+      <BadgeClearer />
       {/* Admin header */}
       <header className="header">
         <div className="header-inner">

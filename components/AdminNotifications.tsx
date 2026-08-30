@@ -22,7 +22,9 @@ export default function AdminNotifications() {
   useEffect(() => {
     fetch("/api/admin-notifications")
       .then((r) => r.json())
-      .then((data: Notification[]) => setNotifications(data))
+      // A 401 (no Clerk session in the installed PWA) returns an error object,
+      // not an array — guard so the list doesn't blow up on .map().
+      .then((data: unknown) => setNotifications(Array.isArray(data) ? (data as Notification[]) : []))
       .catch(() => {})
       .finally(() => setLoaded(true));
 
@@ -38,13 +40,6 @@ export default function AdminNotifications() {
 
     return () => { supabase.removeChannel(ch); };
   }, []);
-
-  // Keep the app icon badge in sync with the live unread count.
-  useEffect(() => {
-    if (!loaded || !("setAppBadge" in navigator)) return;
-    if (notifications.length > 0) navigator.setAppBadge(notifications.length).catch(() => {});
-    else navigator.clearAppBadge().catch(() => {});
-  }, [notifications.length, loaded]);
 
   async function dismiss(id: string) {
     setNotifications((prev) => prev.filter((n) => n.id !== id));

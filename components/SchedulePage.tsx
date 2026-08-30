@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useUser } from "@clerk/nextjs";
 import Calendar from "./Calendar";
 import AdminNotifications from "./AdminNotifications";
+import BadgeClearer from "./BadgeClearer";
 import StudentPushBanner from "./StudentPushBanner";
 import { ADMIN_EMAILS } from "@/lib/adminEmails";
 import type { Class } from "@/lib/types";
@@ -18,6 +19,7 @@ export default function SchedulePage({ initialClasses }: Props) {
 
   return (
     <>
+      <BadgeClearer />
       <header className="header">
         <div className="header-inner">
           <div className="header-top">

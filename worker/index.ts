@@ -33,10 +33,16 @@ self.addEventListener("notificationclick", (event) => {
   const url = (event.notification.data as { url?: string })?.url ?? "/admin";
 
   event.waitUntil(
-    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientsArr) => {
+    (async () => {
+      // Tapping the notification means it's been seen — drop the icon badge
+      // here rather than waiting for the app to load and decide, which never
+      // happens when the PWA isn't carrying a signed-in Clerk session.
+      if ("clearAppBadge" in self.navigator) await self.navigator.clearAppBadge();
+
+      const clientsArr = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
       const existing = clientsArr.find((c) => c.url.includes(url));
       if (existing) return (existing as WindowClient).focus();
-      return self.clients.openWindow(url);
-    }),
+      await self.clients.openWindow(url);
+    })(),
   );
 });
