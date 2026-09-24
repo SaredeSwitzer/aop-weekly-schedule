@@ -9,26 +9,42 @@ function urlBase64ToUint8Array(base64String: string) {
   return Uint8Array.from([...rawData].map((c) => c.charCodeAt(0)));
 }
 
-type Props = { email: string; showToast: (msg: string, ok?: boolean) => void };
+function isIos() {
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+}
 
-// Push is per-device, not per-account (students aren't authenticated), so we
-// track which email this device's subscription belongs to in localStorage —
-// otherwise switching the email on /preferences would show a stale "enabled"
-// state carried over from a previous lookup on the same device.
+type Props = { email: string; showToast: (msg: string, ok?: boolean) => void };
+type Status = "checking" | "unsupported-ios" | "unsupported" | "denied" | "ready";
+
+// Push is per-device (students aren't authenticated), so "on" means this
+// device's subscription is registered on the server to this email.
 const STORAGE_KEY = "yoga_push_email";
 
 export default function StudentPushToggle({ email, showToast }: Props) {
-  const [supported, setSupported] = useState(false);
+  const [status, setStatus] = useState<Status>("checking");
   const [subscribed, setSubscribed] = useState(false);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
-    setSupported(true);
-    navigator.serviceWorker.ready.then(async (reg) => {
+    let cancelled = false;
+    (async () => {
+      if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) {
+        if (!cancelled) setStatus(isIos() ? "unsupported-ios" : "unsupported");
+        return;
+      }
+      const reg = await navigator.serviceWorker.ready;
       const sub = await reg.pushManager.getSubscription();
-      setSubscribed(!!sub && localStorage.getItem(STORAGE_KEY) === email.toLowerCase());
-    });
+      let registeredEmail: string | null = null;
+      if (sub) {
+        const res = await fetch(`/api/push/student-subscribe?endpoint=${encodeURIComponent(sub.endpoint)}`).catch(() => null);
+        registeredEmail = res?.ok ? (await res.json()).email : null;
+      }
+      if (cancelled) return;
+      setSubscribed(registeredEmail === email.toLowerCase());
+      setStatus(Notification.permission === "denied" ? "denied" : "ready");
+    })();
+    return () => { cancelled = true; };
   }, [email]);
 
   async function enable() {
@@ -36,7 +52,7 @@ export default function StudentPushToggle({ email, showToast }: Props) {
     try {
       const permission = await Notification.requestPermission();
       if (permission !== "granted") {
-        showToast("Notification permission denied.", false);
+        setStatus("denied");
         return;
       }
       const reg = await navigator.serviceWorker.ready;
@@ -56,9 +72,9 @@ export default function StudentPushToggle({ email, showToast }: Props) {
       if (!res.ok) throw new Error("Failed to save subscription");
       localStorage.setItem(STORAGE_KEY, email.toLowerCase());
       setSubscribed(true);
-      showToast("Push notifications enabled on this device.");
+      showToast("Push notifications turned on for this device.");
     } catch {
-      showToast("Couldn't enable push notifications.", false);
+      showToast("Couldn't turn on push notifications.", false);
     } finally {
       setLoading(false);
     }
@@ -79,27 +95,38 @@ export default function StudentPushToggle({ email, showToast }: Props) {
       }
       localStorage.removeItem(STORAGE_KEY);
       setSubscribed(false);
-      showToast("Push notifications disabled on this device.");
+      showToast("Push notifications turned off for this device.");
     } catch {
-      showToast("Couldn't disable push notifications.", false);
+      showToast("Couldn't turn off push notifications.", false);
     } finally {
       setLoading(false);
     }
   }
 
-  if (!supported) return null;
+  const usable = status === "ready";
+  const hint =
+    status === "unsupported-ios" ? "On iPhone, push only works in the app: tap Share → Add to Home Screen, then open AOP Shala from your Home Screen and come back here." :
+    status === "unsupported" ? "This browser doesn't support push notifications." :
+    status === "denied" ? "Notifications are blocked for this app. Turn them on in your phone's Settings → Notifications → AOP Shala." :
+    "A notification on this device when your class is moved or cancelled, plus studio messages.";
 
   return (
-    <div className="field-group">
-      <label className="field-label">Push Notifications (this device)</label>
-      <div style={{ fontSize: 13, color: "#888", marginBottom: 10 }}>
-        {subscribed
-          ? "You'll get a push notification on this device for schedule updates, class changes, and messages from the studio."
-          : "Get a push notification on this device for schedule updates, class changes, and messages from the studio."}
-      </div>
-      <button className="btn" type="button" disabled={loading} onClick={subscribed ? disable : enable}>
-        {loading ? "…" : subscribed ? "Disable on this device" : "Enable on this device"}
-      </button>
-    </div>
+    <label style={{ display: "flex", gap: 10, alignItems: "flex-start", padding: "8px 0", cursor: usable ? "pointer" : "default" }}>
+      <input
+        type="checkbox"
+        style={{ marginTop: 3, width: 18, height: 18 }}
+        checked={subscribed}
+        disabled={!usable || loading}
+        onChange={() => (subscribed ? disable() : enable())}
+      />
+      <span>
+        <span style={{ fontSize: 14, fontWeight: 600 }}>
+          Push notifications on this device{loading ? " …" : ""}
+        </span>
+        <span style={{ display: "block", fontSize: 12, color: "#888", marginTop: 2 }}>
+          {status === "checking" ? "Checking…" : hint}
+        </span>
+      </span>
+    </label>
   );
 }

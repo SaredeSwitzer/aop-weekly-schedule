@@ -5,6 +5,16 @@ function isValidEmail(e: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e);
 }
 
+// Which email (if any) a device's subscription is registered to — lets the
+// preferences page show the true server-side state, not just localStorage.
+export async function GET(req: NextRequest) {
+  const endpoint = req.nextUrl.searchParams.get("endpoint");
+  if (!endpoint) return NextResponse.json({ error: "endpoint required" }, { status: 400 });
+  const db = supabaseAdmin();
+  const { data } = await db.from("student_push_subscriptions").select("email").eq("endpoint", endpoint).maybeSingle();
+  return NextResponse.json({ email: data?.email ?? null });
+}
+
 // Students manage push subscriptions by email only, same no-auth model as
 // the rest of the app (signup/cancel/preferences are also email-only).
 export async function POST(req: NextRequest) {
