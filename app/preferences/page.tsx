@@ -14,8 +14,7 @@ function PreferencesForm() {
   const params = useSearchParams();
   const [email, setEmail] = useState(params.get("email") ?? "");
   const [prefs, setPrefs] = useState<Prefs | null>(null);
-  const [phone, setPhone] = useState("");
-  const [channel, setChannel] = useState<"email" | "sms" | "both" | "none">("email");
+  const [emailOptIn, setEmailOptIn] = useState(true);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState("");
@@ -29,12 +28,8 @@ function PreferencesForm() {
     if (!res.ok) { setToast("Something went wrong. Please try again."); return; }
     const data: Prefs = await res.json();
     setPrefs(data);
-    setPhone(data.phone);
-    setChannel(
-      data.email_opt_in && data.sms_opt_in ? "both" :
-      data.sms_opt_in ? "sms" :
-      data.email_opt_in ? "email" : "none",
-    );
+    // Texting was removed — anyone who'd picked text-only is shown as emailed.
+    setEmailOptIn(data.email_opt_in || data.sms_opt_in);
   }
 
   useEffect(() => {
@@ -44,26 +39,17 @@ function PreferencesForm() {
 
   async function save() {
     if (!prefs) return;
-    const wantsSms = channel === "sms" || channel === "both";
-    if (wantsSms && !phone.trim()) { setToast("Please enter a phone number to receive texts."); return; }
-
     setSaving(true);
     const res = await fetch("/api/preferences", {
       method: "PUT",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         email: prefs.email,
-        phone: phone.trim(),
-        email_opt_in: channel === "email" || channel === "both",
-        sms_opt_in: wantsSms,
+        email_opt_in: emailOptIn,
+        sms_opt_in: false,
       }),
     });
     setSaving(false);
-    if (res.status === 400) {
-      const { error } = await res.json();
-      setToast(error === "invalid_phone" ? "That phone number doesn't look right." : "Please enter a phone number to receive texts.");
-      return;
-    }
     if (!res.ok) { setToast("Something went wrong. Please try again."); return; }
     setToast("✓ Preferences saved.");
   }
@@ -95,23 +81,13 @@ function PreferencesForm() {
           <div style={{ fontSize: 13, color: "#888", marginBottom: 14 }}>Editing preferences for <strong>{prefs.email}</strong></div>
 
           <div className="field-group">
-            <label className="field-label">Phone Number (for text messages)</label>
-            <input
-              className="input-field" type="tel" placeholder="(555) 555-5555"
-              value={phone} onChange={(e) => setPhone(e.target.value)}
-            />
-          </div>
-
-          <div className="field-group">
-            <label className="field-label">How should we notify you?</label>
+            <label className="field-label">Email notifications</label>
             {([
-              { v: "email", label: "Email only" },
-              { v: "sms", label: "Text only" },
-              { v: "both", label: "Email and text" },
-              { v: "none", label: "Nothing" },
+              { v: true, label: "Email me about my classes" },
+              { v: false, label: "Don't email me" },
             ] as const).map((opt) => (
-              <label key={opt.v} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14, padding: "6px 0", cursor: "pointer" }}>
-                <input type="radio" name="channel" checked={channel === opt.v} onChange={() => setChannel(opt.v)} />
+              <label key={String(opt.v)} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14, padding: "6px 0", cursor: "pointer" }}>
+                <input type="radio" name="email_opt_in" checked={emailOptIn === opt.v} onChange={() => setEmailOptIn(opt.v)} />
                 {opt.label}
               </label>
             ))}

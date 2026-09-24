@@ -36,8 +36,6 @@ export default function SignupModal({ cls, signups, weekKey, onClose, onSignupSu
   const [tab, setTab]         = useState<Tab>(full ? "cancel" : "signup");
   const [name, setName]       = useState("");
   const [email, setEmail]     = useState("");
-  const [phone, setPhone]     = useState("");
-  const [channel, setChannel] = useState<"email" | "sms" | "both">("email");
   const [cancelEmail, setCancelEmail] = useState("");
   const [remembered, setRemembered]   = useState<RememberedUser | null>(null);
   const [loading, setLoading] = useState(false);
@@ -84,8 +82,6 @@ export default function SignupModal({ cls, signups, weekKey, onClose, onSignupSu
     const e = remEmailInvalid ? emailFix.trim() : (remembered?.email ?? email.trim());
     if (!n || !e) { setToast("Please fill in your name and email."); return; }
     if (!isValidEmail(e)) { setToast("Please enter a valid email address."); return; }
-    const wantsSms = !remembered && (channel === "sms" || channel === "both");
-    if (wantsSms && !phone.trim()) { setToast("Please enter a phone number to receive texts."); return; }
 
     setLoading(true);
     const res = await fetch("/api/signups", {
@@ -93,11 +89,6 @@ export default function SignupModal({ cls, signups, weekKey, onClose, onSignupSu
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         week_key: weekKey, class_id: cls.id, name: n, email: e,
-        ...(remembered ? {} : {
-          phone: phone.trim(),
-          email_opt_in: channel === "email" || channel === "both",
-          sms_opt_in: wantsSms,
-        }),
       }),
     });
     setLoading(false);
@@ -232,25 +223,6 @@ export default function SignupModal({ cls, signups, weekKey, onClose, onSignupSu
                   <input className="input-field" type="email" placeholder="your@email.com"
                     value={email} onChange={(e) => setEmail(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && handleSignup()} />
-                </div>
-                <div className="field-group">
-                  <label className="field-label">How should we notify you about this class?</label>
-                  <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: channel !== "email" ? 8 : 0 }}>
-                    {([
-                      { v: "email", label: "Email" },
-                      { v: "sms", label: "Text" },
-                      { v: "both", label: "Both" },
-                    ] as const).map((opt) => (
-                      <label key={opt.v} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 13, cursor: "pointer" }}>
-                        <input type="radio" name="channel" checked={channel === opt.v} onChange={() => setChannel(opt.v)} />
-                        {opt.label}
-                      </label>
-                    ))}
-                  </div>
-                  {channel !== "email" && (
-                    <input className="input-field" type="tel" placeholder="Phone number for texts"
-                      value={phone} onChange={(e) => setPhone(e.target.value)} />
-                  )}
                 </div>
               </>
             )}
