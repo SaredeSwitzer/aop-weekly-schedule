@@ -18,6 +18,9 @@ self.addEventListener("push", (event) => {
         badge: "/icon-192.png",
         data: { url: data.url ?? "/admin", notificationId: data.notificationId },
       });
+      // The app may be open but holding stale data (iOS drops the Realtime
+      // socket while backgrounded) — tell any open window to refetch now.
+      for (const c of await self.clients.matchAll({ type: "window" })) c.postMessage({ type: "refresh" });
       // The server tells us the true unread count (shared admin inbox), so
       // just apply it directly — no local counting needed.
       if ("setAppBadge" in self.navigator && typeof data.badgeCount === "number") {
@@ -41,7 +44,10 @@ self.addEventListener("notificationclick", (event) => {
 
       const clientsArr = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
       const existing = clientsArr.find((c) => c.url.includes(url));
-      if (existing) return (existing as WindowClient).focus();
+      if (existing) {
+        existing.postMessage({ type: "refresh" });
+        return (existing as WindowClient).focus();
+      }
       await self.clients.openWindow(url);
     })(),
   );

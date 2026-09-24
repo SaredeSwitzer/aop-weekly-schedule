@@ -2,6 +2,7 @@
 
 import { useEffect, useReducer, useCallback, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { useRefreshOnWake } from "@/lib/useRefreshOnWake";
 import {
   DAYS, DISPLAY_ORDER, DISPLAY_SHORT, START_HOUR, END_HOUR, HOUR_PX,
   getWeekDates, getWeekKey, getInitialWeekKey, getEffectiveClass, fmtTimeRange, fmtDate, locColorClass,
@@ -115,13 +116,20 @@ export default function Calendar({ classes: initialClasses }: Props) {
     dispatch({ type: "SET_DATA", signups: toSignupMap(signupRows), overrides: toOverrideMap(overrideRows) });
   }, []);
 
-  // Fetch fresh classes on mount so stale server-rendered data doesn't persist
-  useEffect(() => {
+  const fetchClasses = useCallback(() => {
     fetch("/api/classes")
       .then((r) => r.json())
-      .then((data: Class[]) => setClasses(data))
+      .then((data: Class[]) => { if (Array.isArray(data)) setClasses(data); })
       .catch(() => {});
   }, []);
+
+  // Fetch fresh classes on mount so stale server-rendered data doesn't persist
+  useEffect(() => { fetchClasses(); }, [fetchClasses]);
+
+  useRefreshOnWake(() => {
+    fetchClasses();
+    fetchWeekData(weekKey).catch(() => {});
+  });
 
   useEffect(() => {
     const ch = supabase

@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { useRefreshOnWake } from "@/lib/useRefreshOnWake";
 import { supabase } from "@/lib/supabase";
 
 type Notification = { id: string; type: string; title: string; body: string; created_at: string };
@@ -19,7 +20,7 @@ export default function AdminNotifications() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loaded, setLoaded] = useState(false);
 
-  useEffect(() => {
+  const load = useCallback(() => {
     fetch("/api/admin-notifications")
       .then((r) => r.json())
       // A 401 (no Clerk session in the installed PWA) returns an error object,
@@ -27,6 +28,12 @@ export default function AdminNotifications() {
       .then((data: unknown) => setNotifications(Array.isArray(data) ? (data as Notification[]) : []))
       .catch(() => {})
       .finally(() => setLoaded(true));
+  }, []);
+
+  useRefreshOnWake(load);
+
+  useEffect(() => {
+    load();
 
     const ch = supabase
       .channel("admin-notifications-realtime")
@@ -39,7 +46,7 @@ export default function AdminNotifications() {
       .subscribe();
 
     return () => { supabase.removeChannel(ch); };
-  }, []);
+  }, [load]);
 
   async function dismiss(id: string) {
     setNotifications((prev) => prev.filter((n) => n.id !== id));

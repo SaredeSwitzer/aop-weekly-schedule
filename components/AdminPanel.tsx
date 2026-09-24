@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { UserButton } from "@clerk/nextjs";
 import { supabase } from "@/lib/supabase";
+import { useRefreshOnWake } from "@/lib/useRefreshOnWake";
 import {
   DAYS, DISPLAY_ORDER, getWeekKey, fmtTimeRange, fmtDate, getEffectiveClass, getSlotDate,
 } from "@/lib/dates";
@@ -139,8 +140,8 @@ export default function AdminPanel({ initialClasses }: Props) {
     setTimeout(() => setToast(""), ok ? 5000 : 6000);
   }
 
-  const fetchWeekData = useCallback(async (key: string) => {
-    setLoading(true);
+  const fetchWeekData = useCallback(async (key: string, silent = false) => {
+    if (!silent) setLoading(true);
     const [sRes, oRes] = await Promise.all([
       fetch(`/api/signups?week=${key}`),
       fetch(`/api/overrides?week=${key}`),
@@ -173,6 +174,14 @@ export default function AdminPanel({ initialClasses }: Props) {
       })
       .catch(() => {});
   }, []);
+
+  useRefreshOnWake(() => {
+    fetchWeekData(weekKey, true).catch(() => {});
+    fetch("/api/classes")
+      .then((r) => r.json())
+      .then((data: Class[]) => { if (Array.isArray(data)) setClasses(data); })
+      .catch(() => {});
+  });
 
   // Realtime subscriptions
   useEffect(() => {
