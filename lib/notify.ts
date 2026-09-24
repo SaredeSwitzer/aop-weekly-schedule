@@ -1,6 +1,6 @@
 import { supabaseAdmin } from "./supabase";
 import { brevoSend } from "./email";
-import { sendSms } from "./sms";
+import { sendSms, isSmsConfigured } from "./sms";
 import { notifyStudentPush } from "./push";
 
 export type StudentPreferences = {
@@ -38,11 +38,15 @@ export async function notifyStudent(params: {
   const prefs = await getStudentPreferences(params.email);
   const tasks: Promise<unknown>[] = [];
 
-  if (prefs.email_opt_in) {
+  // Until Twilio is set up, texts can't go out — so a text-only student would
+  // otherwise hear nothing. Fall back to email for them.
+  const smsWillSend = prefs.sms_opt_in && !!prefs.phone && isSmsConfigured();
+
+  if (prefs.email_opt_in || (prefs.sms_opt_in && !smsWillSend)) {
     tasks.push(brevoSend(params.email, params.name, params.subject, params.emailHtml));
   }
-  if (prefs.sms_opt_in && prefs.phone && params.smsBody) {
-    tasks.push(sendSms(prefs.phone, params.smsBody));
+  if (smsWillSend && params.smsBody) {
+    tasks.push(sendSms(prefs.phone!, params.smsBody));
   }
   if (params.pushBody || params.smsBody) {
     tasks.push(notifyStudentPush(params.email, {

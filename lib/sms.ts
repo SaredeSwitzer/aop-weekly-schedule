@@ -7,6 +7,10 @@ function getClient() {
   return twilio(sid, token);
 }
 
+export function isSmsConfigured() {
+  return !!(process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_FROM_NUMBER);
+}
+
 // Normalizes to E.164, assuming US numbers when no country code is given.
 export function normalizePhone(raw: string): string | null {
   const digits = raw.replace(/[^\d+]/g, "");

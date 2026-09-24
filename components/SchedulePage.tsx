@@ -33,9 +33,14 @@ export default function SchedulePage({ initialClasses }: Props) {
                 </div>
               </div>
             </div>
-            <Link href="/admin" style={{ color: "rgba(255,255,255,0.7)", fontSize: 13, textDecoration: "none" }}>
-              ⚙ Admin
-            </Link>
+            <div style={{ display: "flex", gap: 14 }}>
+              <Link href="/preferences" style={{ color: "rgba(255,255,255,0.7)", fontSize: 13, textDecoration: "none" }}>
+                🔔 My notifications
+              </Link>
+              <Link href="/admin" style={{ color: "rgba(255,255,255,0.7)", fontSize: 13, textDecoration: "none" }}>
+                ⚙ Admin
+              </Link>
+            </div>
           </div>
         </div>
       </header>

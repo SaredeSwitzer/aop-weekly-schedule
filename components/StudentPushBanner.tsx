@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 
 type RememberedUser = { name: string; email: string } | null;
 
@@ -14,38 +15,57 @@ function urlBase64ToUint8Array(base64String: string) {
   return Uint8Array.from([...rawData].map((c) => c.charCodeAt(0)));
 }
 
-// Prompts returning students (identified by the same "remembered" localStorage
-// email used by SignupModal) to enable push on this device, without requiring
-// them to find their way to /preferences first.
+function isIos() {
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+}
+
+function isStandalone() {
+  return window.matchMedia("(display-mode: standalone)").matches ||
+    (navigator as Navigator & { standalone?: boolean }).standalone === true;
+}
+
+// Offers push to every visitor on the schedule page until they either enable
+// it or dismiss the banner — after that it never reappears on this device,
+// and they can still opt in from /preferences. iOS only allows push inside the
+// installed Home Screen app, so a plain Safari tab gets install steps instead.
 export default function StudentPushBanner() {
-  const [visible, setVisible] = useState(false);
-  const [email, setEmail] = useState<string | null>(null);
+  const [mode, setMode] = useState<"hidden" | "enable" | "install">("hidden");
+  const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
     if (localStorage.getItem(DISMISSED_KEY)) return;
 
-    const remembered: RememberedUser = JSON.parse(localStorage.getItem("yoga_user") || "null");
-    if (!remembered?.email) return;
+    const pushSupported = "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
+    if (!pushSupported) {
+      if (isIos() && !isStandalone()) queueMicrotask(() => setMode("install"));
+      return;
+    }
+    if (Notification.permission === "denied") return;
 
     navigator.serviceWorker.ready.then(async (reg) => {
       const sub = await reg.pushManager.getSubscription();
-      const alreadyEnabled = !!sub && localStorage.getItem(PUSH_EMAIL_KEY) === remembered.email.toLowerCase();
-      if (!alreadyEnabled) {
-        setEmail(remembered.email);
-        setVisible(true);
-      }
+      if (sub && localStorage.getItem(PUSH_EMAIL_KEY)) return;
+      const remembered: RememberedUser = JSON.parse(localStorage.getItem("yoga_user") || "null");
+      if (remembered?.email) setEmail(remembered.email);
+      setMode("enable");
     });
   }, []);
 
   function dismiss() {
     localStorage.setItem(DISMISSED_KEY, "1");
-    setVisible(false);
+    setMode("hidden");
   }
 
   async function enable() {
-    if (!email) return;
+    const e = email.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) {
+      setError("Enter the email you sign up for classes with.");
+      return;
+    }
+    setError("");
     setLoading(true);
     try {
       const permission = await Notification.requestPermission();
@@ -65,37 +85,67 @@ export default function StudentPushBanner() {
       const res = await fetch("/api/push/student-subscribe", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, endpoint: json.endpoint, keys: json.keys }),
+        body: JSON.stringify({ email: e, endpoint: json.endpoint, keys: json.keys }),
       });
       if (!res.ok) throw new Error("Failed to save subscription");
-      localStorage.setItem(PUSH_EMAIL_KEY, email.toLowerCase());
-      setVisible(false);
+      localStorage.setItem(PUSH_EMAIL_KEY, e);
+      localStorage.setItem(DISMISSED_KEY, "1");
+      setMode("hidden");
     } catch {
-      dismiss();
+      setError("Couldn't turn on notifications. You can try again from My notifications.");
     } finally {
       setLoading(false);
     }
   }
 
-  if (!visible) return null;
+  if (mode === "hidden") return null;
 
   return (
     <div
       style={{
         background: "white", borderRadius: 12, padding: "14px 16px", marginBottom: 12,
-        border: "1.5px solid #e8dfd4", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap",
+        border: "1.5px solid #e8dfd4", display: "flex", flexDirection: "column", gap: 10,
       }}
     >
-      <div style={{ fontSize: 13, color: "#666" }}>
-        🔔 Get a push notification on this device for class updates, cancellations, and studio messages.
+      <div style={{ fontSize: 14, color: "#444", fontWeight: 600 }}>
+        🔔 Get notified when your class changes
       </div>
-      <div style={{ display: "flex", gap: 8 }}>
-        <button className="btn" disabled={loading} onClick={enable}>
-          {loading ? "…" : "Enable"}
-        </button>
+
+      {mode === "install" ? (
+        <div style={{ fontSize: 13, color: "#666", lineHeight: 1.5 }}>
+          To get alerts on your iPhone about class changes, cancellations, and studio messages, tap the{" "}
+          <strong>Share</strong> button below, choose <strong>Add to Home Screen</strong>, then open AOP Shala
+          from your Home Screen and tap <strong>Enable</strong>.
+        </div>
+      ) : (
+        <>
+          <div style={{ fontSize: 13, color: "#666" }}>
+            Get a notification on this device when a class you signed up for is moved or cancelled, plus studio messages.
+          </div>
+          <input
+            type="email"
+            placeholder="Your email"
+            value={email}
+            onChange={(ev) => setEmail(ev.target.value)}
+            style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid #ddd", fontSize: 14 }}
+          />
+        </>
+      )}
+
+      {error && <div style={{ fontSize: 12, color: "#b00" }}>{error}</div>}
+
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+        {mode === "enable" && (
+          <button className="btn" disabled={loading} onClick={enable}>
+            {loading ? "…" : "Enable"}
+          </button>
+        )}
         <button className="btn" onClick={dismiss} style={{ opacity: 0.6 }}>
-          Not now
+          {mode === "install" ? "Got it" : "Not now"}
         </button>
+        <span style={{ fontSize: 12, color: "#999" }}>
+          You can change this anytime in <Link href="/preferences">My notifications</Link>.
+        </span>
       </div>
     </div>
   );
